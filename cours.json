@@ -1,0 +1,43 @@
+{
+ "maj": "2026-10-25T14:53:18+00:00",
+ "yahoo": {
+  "WPEA.PA": {
+   "prix": 7.118,
+   "devise": "EUR",
+   "variation": -0.042,
+   "cloture_precedente": 7.161,
+   "nom": "iShares MSCI World Swap PEA UCITS ETF",
+   "source": "yahoo"
+  },
+  "PAASI.PA": {
+   "prix": 37.065,
+   "devise": "EUR",
+   "variation": 0.447,
+   "nom": "Amundi MSCI Emerging Asia ESG Leaders",
+   "source": "yahoo"
+  }
+ },
+ "coingecko": {
+  "bitcoin": {
+   "prix": 71796,
+   "devise": "EUR",
+   "variation": 0.223
+  },
+  "ethereum": {
+   "prix": 2086.32,
+   "devise": "EUR",
+   "variation": -0.323
+  },
+  "chainlink": {
+   "prix": 10.16,
+   "devise": "EUR",
+   "variation": -0.845
+  },
+  "solana": {
+   "prix": 90.24,
+   "devise": "EUR",
+   "variation": 0.61
+  }
+ },
+ "erreurs": {}
+}

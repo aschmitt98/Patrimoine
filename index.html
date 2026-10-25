@@ -1,0 +1,1742 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<!-- La page ne peut parler qu'à trois adresses : elle-même (cours.json), l'API
+     GitHub (les données privées) et CoinGecko (les cryptos). Même si du contenu
+     inattendu arrivait à s'y exécuter, il n'aurait nulle part où envoyer quoi que
+     ce soit. `unsafe-inline` reste nécessaire : la feuille de style et le script
+     sont dans le fichier, et aucun code tiers n'est chargé. -->
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'none';
+  connect-src 'self' https://api.github.com https://api.coingecko.com;
+  script-src 'unsafe-inline';
+  style-src 'unsafe-inline' https://fonts.googleapis.com;
+  font-src https://fonts.gstatic.com;
+  img-src 'self' data:;
+  base-uri 'none';
+  form-action 'none'">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="color-scheme" content="light dark">
+<title>Patrimoine</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%232a78d6'/%3E%3Cpath d='M3 11.5 6.2 7l2.4 2.6L13 4.5' stroke='%23fff' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Tableau de bord mobile : une colonne, en-tête collant avec sélecteur de mois,
+   cinq onglets. Même système visuel que l'app Hyrox — Barlow Condensed en titrage,
+   IBM Plex en texte et en chiffres — avec la palette catégorielle validée en plus. */
+:root{
+  --ground:#f7f6f3; --surface:#fffefc; --raised:#f1efe9;
+  --ink:#15171c; --ink2:#5a5f6b; --ink3:#8b8f9a;
+  --rule:#e3e0d9; --rule-strong:#cfcbc1;
+  --accent:#2a78d6; --accent-soft:#e6eefa;
+  /* Palette catégorielle validée, dans l'ordre fixe des slots 1→7. Les paires
+     voisines sont celles qui passent les seuils de daltonisme : ne pas réordonner. */
+  --c1:#2a78d6; --c2:#eb6834; --c3:#1baf7a; --c4:#eda100;
+  --c5:#e87ba4; --c6:#008300; --c7:#6250d6;
+  --in:#1baf7a; --out:#eb6834;              /* entrées / sorties de trésorerie */
+  --good:#0ca30c; --warn:#fab219; --crit:#d03b3b;
+  --shadow:0 1px 2px rgba(20,22,28,.06),0 4px 14px rgba(20,22,28,.05);
+  --f-display:"Barlow Condensed","Arial Narrow",sans-serif;
+  --f-body:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono","SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  color-scheme:dark;
+  --ground:#141519; --surface:#1c1e23; --raised:#23262c;
+  --ink:#f2f3f5; --ink2:#a8adb8; --ink3:#727783;
+  --rule:#2b2e35; --rule-strong:#3b3f48;
+  --accent:#3987e5; --accent-soft:#1b2a3d;
+  --c1:#3987e5; --c2:#d95926; --c3:#199e70; --c4:#c98500;
+  --c5:#d55181; --c6:#008300; --c7:#9085e9;
+  --in:#199e70; --out:#d95926;
+  --good:#2fb62f; --warn:#d99b10; --crit:#e05a5a;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3);
+}}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --ground:#141519; --surface:#1c1e23; --raised:#23262c;
+  --ink:#f2f3f5; --ink2:#a8adb8; --ink3:#727783;
+  --rule:#2b2e35; --rule-strong:#3b3f48;
+  --accent:#3987e5; --accent-soft:#1b2a3d;
+  --c1:#3987e5; --c2:#d95926; --c3:#199e70; --c4:#c98500;
+  --c5:#d55181; --c6:#008300; --c7:#9085e9;
+  --in:#199e70; --out:#d95926;
+  --good:#2fb62f; --warn:#d99b10; --crit:#e05a5a;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--f-body);
+  font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);
+  z-index:30;background:var(--ground)}
+
+/* ---------- écran de déverrouillage ---------- */
+.lock{min-height:72vh;display:flex;align-items:center;justify-content:center;
+  padding-block:40px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px))}
+.lock-card{width:100%;max-width:380px;background:var(--surface);
+  border:1px solid var(--rule);border-radius:16px;padding:26px 22px;
+  box-shadow:var(--shadow);display:flex;flex-direction:column;gap:14px}
+.lock-card h1{font-size:28px;line-height:1.05}
+.lock-card h1 span{display:block;font-family:var(--f-body);font-size:11px;font-weight:600;
+  letter-spacing:.09em;text-transform:uppercase;color:var(--ink3);margin-top:6px}
+.lock-card > p{margin:0;font-size:13.5px;color:var(--ink2);line-height:1.55}
+.lock-card label{font-size:11px;font-weight:600;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--ink3);display:block;margin-bottom:6px}
+.lock-card input[type=password]{width:100%;font-family:var(--f-body);font-size:16px;
+  color:var(--ink);background:var(--ground);border:1px solid var(--rule-strong);
+  border-radius:10px;padding:11px 12px}
+.lock-card input[type=password]:focus-visible{outline:2px solid var(--accent);
+  outline-offset:1px;border-color:var(--accent)}
+.lock-card label.check{display:flex;align-items:center;gap:8px;font-size:12.5px;
+  font-weight:400;letter-spacing:0;text-transform:none;color:var(--ink2);
+  margin-bottom:0;cursor:pointer}
+.lock-card label.check input{accent-color:var(--accent);width:15px;height:15px;flex:none}
+button.primary{appearance:none;border:0;border-radius:10px;padding:12px 16px;
+  background:var(--accent);color:#fff;font-family:var(--f-display);font-size:17px;
+  font-weight:600;letter-spacing:.02em;cursor:pointer}
+button.primary:disabled{opacity:.55;cursor:default}
+button.primary:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.lock-err{margin:0;font-size:12.5px;color:var(--crit);min-height:1.2em;line-height:1.5}
+.lock-note{margin:0;font-size:11.5px;color:var(--ink3);line-height:1.6;
+  border-top:1px solid var(--rule);padding-top:13px}
+.lock-note b{color:var(--ink2);font-weight:600}
+.lock-note a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:2px}
+.wrap{max-width:640px;margin:0 auto;padding-block:0 72px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{margin:0;font-family:var(--f-display);font-weight:600;text-wrap:balance;
+  letter-spacing:.01em}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink3)}
+
+/* ---------- en-tête ---------- */
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--ground);
+  border-bottom:1px solid var(--rule)}
+.head-in{max-width:640px;margin:0 auto;padding-block:14px 0;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px))}
+.head-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{font-family:var(--f-display);font-size:22px;font-weight:700;line-height:1.05}
+.brand small{display:block;font-family:var(--f-body);font-size:10.5px;font-weight:500;
+  letter-spacing:.07em;text-transform:uppercase;color:var(--ink3);margin-top:3px}
+.head-tools{display:flex;align-items:center;gap:7px;flex:none}
+select#mois{appearance:none;font-family:var(--f-body);font-size:13px;font-weight:600;
+  color:var(--ink);background:var(--surface);border:1px solid var(--rule-strong);
+  border-radius:9px;padding:7px 26px 7px 10px;cursor:pointer;
+  background-image:linear-gradient(45deg,transparent 50%,var(--ink3) 50%),
+                   linear-gradient(135deg,var(--ink3) 50%,transparent 50%);
+  background-position:calc(100% - 14px) 52%,calc(100% - 9px) 52%;
+  background-size:5px 5px,5px 5px;background-repeat:no-repeat}
+button.ghost{width:34px;height:34px;flex:none;border-radius:9px;
+  border:1px solid var(--rule-strong);background:var(--surface);color:var(--ink2);
+  cursor:pointer;font-size:14px;line-height:1}
+button.ghost:hover{color:var(--ink)}
+nav{display:flex;gap:18px;margin-top:12px;overflow-x:auto;scrollbar-width:none}
+nav::-webkit-scrollbar{display:none}
+nav button{appearance:none;background:none;border:0;padding:0 0 10px;cursor:pointer;
+  font-family:var(--f-display);font-size:17px;font-weight:600;color:var(--ink3);
+  border-bottom:2px solid transparent;letter-spacing:.02em;white-space:nowrap;flex:none}
+nav button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+:is(nav button,button.ghost,select,.row-head,.fold):focus-visible{outline:2px solid var(--accent);
+  outline-offset:3px;border-radius:3px}
+
+/* ---------- blocs ---------- */
+section.viz{margin-top:28px}
+section.viz > h2{font-size:20px}
+section.viz > .lede{font-size:13.5px;color:var(--ink2);margin:5px 0 0;max-width:62ch}
+.figure{margin-top:14px;background:var(--surface);border:1px solid var(--rule);
+  border-radius:14px;padding:14px 12px 10px;box-shadow:var(--shadow);position:relative}
+.figure svg{display:block;width:100%;height:auto;overflow:visible}
+.legend{display:flex;flex-wrap:wrap;gap:10px 14px;margin:11px 2px 2px;font-size:11.5px;
+  color:var(--ink2)}
+.legend i{display:inline-block;width:11px;height:3px;border-radius:2px;margin-right:5px;
+  vertical-align:middle}
+.legend i.sq{height:10px;width:10px;border-radius:3px}
+.note{font-size:12px;color:var(--ink3);margin:10px 2px 0;line-height:1.5}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--ground);
+  font-size:11.5px;line-height:1.5;padding:7px 9px;border-radius:7px;white-space:nowrap;
+  opacity:0;transition:opacity .1s;z-index:5;font-family:var(--f-mono);
+  font-variant-numeric:tabular-nums}
+.tip.on{opacity:1}
+.tip b{font-family:var(--f-body)}
+
+/* ---------- héros ---------- */
+.hero{margin-top:20px;background:var(--surface);border:1px solid var(--rule);
+  border-radius:16px;padding:20px 18px;box-shadow:var(--shadow)}
+.hero .k{font-family:var(--f-mono);font-size:40px;font-weight:600;line-height:1;
+  font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.hero .sub{display:flex;flex-wrap:wrap;align-items:baseline;gap:9px;margin-top:10px}
+.delta{font-family:var(--f-mono);font-size:14px;font-weight:600;padding:3px 8px;
+  border-radius:999px;font-variant-numeric:tabular-nums}
+.delta.up{color:var(--in);background:color-mix(in srgb,var(--in) 12%,transparent)}
+.delta.down{color:var(--out);background:color-mix(in srgb,var(--out) 14%,transparent)}
+.hero .ctx{font-size:13px;color:var(--ink2)}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:600;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--in);
+  background:color-mix(in srgb,var(--in) 13%,transparent);padding:3px 9px;
+  border-radius:999px;white-space:nowrap}
+.live i{width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block}
+.live.vieux{color:var(--warn);background:color-mix(in srgb,var(--warn) 18%,transparent)}
+.live.ko{color:var(--ink3);background:var(--raised)}
+
+/* ---------- tuiles ---------- */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:8px;
+  margin-top:14px}
+.tile{background:var(--surface);border:1px solid var(--rule);border-radius:12px;
+  padding:12px 11px;min-width:0}
+.tile .k{font-family:var(--f-mono);font-size:18px;font-weight:600;line-height:1.1;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.tile .l{font-size:10.5px;color:var(--ink3);margin-top:5px;line-height:1.35}
+
+/* ---------- barres HTML ---------- */
+.bars{display:flex;flex-direction:column;gap:11px;margin-top:14px}
+.bar-row{min-width:0}
+.bar-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+  margin-bottom:4px}
+.bar-top .nm{font-size:13px;font-weight:500;min-width:0;overflow-wrap:anywhere}
+.bar-top .vl{font-family:var(--f-mono);font-size:12.5px;font-weight:600;flex:none;
+  font-variant-numeric:tabular-nums}
+.bar-top .vl s{text-decoration:none;color:var(--ink3);font-weight:400;margin-left:6px}
+.track{height:9px;border-radius:5px;background:var(--raised);overflow:hidden;position:relative}
+/* display:block — un span reste en ligne, et une hauteur en % sur un élément
+   en ligne ne s'applique pas : la barre serait invisible. */
+.track .fill{display:block;height:100%;border-radius:5px}
+.track.signed{background:none}
+.track.signed .mid{position:absolute;top:-2px;bottom:-2px;width:1px;background:var(--rule-strong)}
+.track.signed .fill{position:absolute;top:0;bottom:0}
+.cible{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink2);
+  border-radius:1px}
+.flag{font-size:11px;font-weight:600;padding:2px 7px;border-radius:999px;flex:none;
+  white-space:nowrap}
+.flag.ok{color:var(--good);background:color-mix(in srgb,var(--good) 13%,transparent)}
+.flag.over{color:var(--crit);background:color-mix(in srgb,var(--crit) 13%,transparent)}
+.flag.watch{color:var(--warn);background:color-mix(in srgb,var(--warn) 18%,transparent)}
+
+/* ---------- tableaux ---------- */
+.scroll{overflow-x:auto;margin-top:14px;border:1px solid var(--rule);border-radius:12px;
+  background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:8px 11px;text-align:right;white-space:nowrap;
+  border-bottom:1px solid var(--rule)}
+th:first-child,td:first-child{text-align:left;white-space:normal;min-width:168px}
+thead th{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--ink3);background:var(--raised);position:sticky;top:0}
+tbody tr:last-child td{border-bottom:0}
+td.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+td.txt{text-align:left;white-space:normal;min-width:240px;max-width:36ch;font-size:12px;
+  color:var(--ink3);line-height:1.5}
+tr.grp td{background:var(--raised);font-family:var(--f-display);font-size:15px;
+  font-weight:600;letter-spacing:.02em}
+tr.tot td{font-weight:600}
+tr.tot td:first-child{color:var(--ink2)}
+td .hint{display:block;font-size:11px;color:var(--ink3);font-weight:400;line-height:1.4;
+  white-space:normal;margin-top:2px}
+.pos{color:var(--in)}
+.neg{color:var(--out)}
+
+/* ---------- listes dépliables ---------- */
+.fold{appearance:none;width:100%;text-align:left;background:var(--surface);
+  border:1px solid var(--rule);border-radius:12px;padding:13px 14px;margin-top:9px;
+  cursor:pointer;color:var(--ink);font:inherit;display:flex;gap:11px;align-items:flex-start}
+.fold .ar{flex:none;color:var(--ink3);font-size:12px;margin-top:3px;transition:transform .15s}
+.fold[aria-expanded="true"] .ar{transform:rotate(90deg)}
+.fold b{font-family:var(--f-display);font-size:16.5px;font-weight:600;display:block}
+.fold p{margin:0;font-size:13px;color:var(--ink2);display:none;line-height:1.55}
+.fold p.open{display:block;margin-top:5px}
+.insight{background:var(--accent-soft);border-radius:12px;padding:13px 15px;margin-top:14px}
+.insight .eyebrow{color:var(--accent)}
+.insight p{margin:5px 0 0;font-size:13.5px;line-height:1.6}
+.flags{list-style:none;margin:12px 0 0;padding:0}
+.flags li{padding:10px 0;border-top:1px solid var(--rule);font-size:13.5px;
+  color:var(--ink2);line-height:1.55}
+.flags li b{color:var(--ink);font-weight:600}
+footer{margin-top:34px;padding-top:14px;border-top:1px solid var(--rule);font-size:11.5px;
+  color:var(--ink3);line-height:1.6}
+footer b{color:var(--ink2);font-weight:600}
+button.lien{appearance:none;border:0;background:none;padding:0;cursor:pointer;
+  font:inherit;color:var(--accent);text-decoration:underline;
+  text-underline-offset:2px}
+button.lien:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="lock" id="verrou">
+  <form class="lock-card" id="form-verrou" autocomplete="on">
+    <h1>Patrimoine<span>Lecture du dépôt privé</span></h1>
+    <p>Cette page ne contient aucun chiffre. Elle va les lire dans ton dépôt privé,
+      avec un jeton de lecture seule que tu colles ici. Rien ne transite par un autre
+      serveur.</p>
+    <div>
+      <label for="phrase">Jeton GitHub</label>
+      <input type="password" id="phrase" name="password" autocomplete="current-password"
+             autocapitalize="off" autocorrect="off" spellcheck="false"
+             placeholder="github_pat_…" required>
+    </div>
+    <label class="check" for="retenir">
+      <input type="checkbox" id="retenir"> Se souvenir sur cet ordinateur
+    </label>
+    <button type="submit" class="primary" id="ouvrir">Se connecter</button>
+    <p class="lock-err" id="err-verrou" role="alert" aria-live="polite"></p>
+    <p class="lock-note">Le jeton se crée sur
+      <a href="https://github.com/settings/personal-access-tokens/new" target="_blank"
+         rel="noopener noreferrer">github.com</a> — type <b>fine-grained</b>, accès
+      limité au seul dépôt de données, permission <b>Contents : Read-only</b>, durée
+      90 jours. Il ne donne que la lecture de ce dépôt, et se révoque d'un clic.</p>
+  </form>
+</div>
+
+<header hidden>
+  <div class="head-in">
+    <div class="head-row">
+      <div class="brand">Patrimoine<small id="profil">Suivi mensuel</small></div>
+      <div class="head-tools">
+        <select id="mois" aria-label="Mois affiché"></select>
+        <button class="ghost" id="theme" aria-label="Basculer le thème">◐</button>
+      </div>
+    </div>
+    <nav role="tablist" aria-label="Vues">
+      <button role="tab" id="t-patrimoine" aria-selected="true">Patrimoine</button>
+      <button role="tab" id="t-marches" aria-selected="false">Marchés</button>
+      <button role="tab" id="t-flux" aria-selected="false">Flux</button>
+      <button role="tab" id="t-depenses" aria-selected="false">Dépenses</button>
+      <button role="tab" id="t-immo" aria-selected="false">Immo</button>
+      <button role="tab" id="t-bridge" aria-selected="false">Bridge</button>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap" hidden>
+  <div id="p-patrimoine" role="tabpanel"></div>
+  <div id="p-marches" role="tabpanel" hidden></div>
+  <div id="p-flux" role="tabpanel" hidden></div>
+  <div id="p-depenses" role="tabpanel" hidden></div>
+  <div id="p-immo" role="tabpanel" hidden></div>
+  <div id="p-bridge" role="tabpanel" hidden></div>
+  <footer id="pied"></footer>
+</div>
+
+<script>
+/* Où vivent les données. Ce dépôt-ci est public et ne contient que du code ; les
+   chiffres sont dans un dépôt privé, lus à l'ouverture via l'API GitHub. */
+const DEPOT = {
+  proprietaire: "aschmitt98",
+  nom: "patrimoine-coach",
+  branche: "main",
+  tracker: "data/patrimoine.json",
+  portefeuille: "data/portefeuille.json",
+};
+
+/* Données du classeur et portefeuille : remplis après connexion, jamais avant.
+   Tout ce qui les lit passe par une fonction, appelée après `connecter()`. */
+let DATA = null, PF = null, MOIS = [], sel = 0;
+/* Cours de marché : chargés après l'ouverture, la page s'affiche sans eux. */
+let COURS = {yahoo: {}, coingecko: {}, maj: null, direct: false, etat: "attente"};
+
+const $ = s => document.querySelector(s);
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const SVGNS = "http://www.w3.org/2000/svg";
+const ONGLETS = ["patrimoine", "marches", "flux", "depenses", "immo", "bridge"];
+const SLOTS = ["--c1", "--c2", "--c3", "--c4", "--c5", "--c6", "--c7"];
+
+/* ---------- formats ---------- */
+const nf = (d) => new Intl.NumberFormat("fr-FR", {minimumFractionDigits: d,
+  maximumFractionDigits: d});
+const n0 = nf(0), n1 = nf(1), n2 = nf(2), n3 = nf(3);
+/* Un cours se lit avec les décimales qui portent de l'information : un ETF à 7 €
+   bouge au millième, un bitcoin à 72 000 € ne se lit pas au centime. */
+const cours = v => v == null ? "—" :
+  (v >= 1000 ? n0.format(Math.round(v)) : v >= 10 ? n2.format(v) : n3.format(v)) + " €";
+/* Quantité : six chiffres significatifs, zéros de queue retirés. 43,78 LINK ne doit
+   pas s'afficher « 44 », ni 0,02037 BTC « 0 ». */
+const fmtQte = q => {
+  if (q == null) return "—";
+  let s = q.toPrecision(6);
+  if (s.indexOf("e") >= 0) s = String(q);
+  if (s.indexOf(".") >= 0) s = s.replace(/0+$/, "").replace(/\.$/, "");
+  return s.replace(".", ",");
+};
+const eur = v => v == null ? "—" : n0.format(Math.round(v)) + " €";
+const eurS = v => v == null ? "—" :
+  (v > 0 ? "+" : v < 0 ? "−" : "") + n0.format(Math.abs(Math.round(v))) + " €";
+/* Graduation d'axe : « 0 », « 50 k€ », et la décimale seulement si le palier
+   tombe sur un demi-millier — « 200,0 k€ » sur chaque trait est du bruit. */
+const kE = v => {
+  if (v == null) return "—";
+  if (Math.abs(v) < 1) return "0";
+  const k = v / 1000;
+  return (Math.abs(k - Math.round(k)) < .01 ? n0.format(Math.round(k))
+    : n1.format(k)) + " k€";
+};
+const pc = v => v == null ? "—" : n1.format(v * 100) + " %";
+const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g,
+  c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+
+/* Libellés de la feuille : « 🛒  Courses & Alimentation » → « Courses & Alimentation ».
+   L'emoji est rendu à part pour qu'il ne parte pas dans les calculs de largeur. */
+function emoji(s){
+  const m = String(s || "").match(/^([^\p{L}\p{N}]+)\s*(.*)$/u);
+  return m ? [m[1].trim(), m[2].trim()] : ["", String(s || "").trim()];
+}
+const nom = s => emoji(s)[1] || String(s || "");
+
+/* ---------- mois courant ---------- */
+const idx = (liste, m) => liste.indexOf(m);
+const moisSel = () => MOIS[sel];
+const at = (ligne, liste) => {                  // valeur d'une ligne au mois courant
+  if (!ligne) return null;
+  const i = idx(liste, moisSel());
+  return i < 0 ? null : (ligne.valeurs ? ligne.valeurs[i] : null);
+};
+
+/* ---------- primitives SVG ---------- */
+function sv(tag, attrs){
+  const e = document.createElementNS(SVGNS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+function txt(x, y, s, o){
+  const t = sv("text", Object.assign({x, y, fill: css("--ink3"), "font-size": 10,
+    "font-family": "IBM Plex Mono, monospace"}, o || {}));
+  t.textContent = s;
+  return t;
+}
+/* Barre verticale dont seule l'extrémité libre est arrondie (4px), la base restant
+   plaquée sur l'axe — un rect à coins ronds décollerait la barre de son zéro. */
+function barV(x, w, yBase, yEnd, r){
+  const s = yEnd < yBase ? 1 : -1;
+  r = Math.min(r == null ? 4 : r, w / 2, Math.abs(yBase - yEnd));
+  return `M${x} ${yBase} L${x} ${yEnd + s * r} Q${x} ${yEnd} ${x + r} ${yEnd}`
+    + ` L${x + w - r} ${yEnd} Q${x + w} ${yEnd} ${x + w} ${yEnd + s * r}`
+    + ` L${x + w} ${yBase} Z`;
+}
+function tipFor(fig){
+  const t = document.createElement("div");
+  t.className = "tip";
+  fig.appendChild(t);
+  return {
+    show(x, y, html){
+      t.innerHTML = html;
+      t.classList.add("on");
+      const w = t.offsetWidth, W = fig.clientWidth;
+      t.style.left = Math.max(4, Math.min(W - w - 4, x - w / 2)) + "px";
+      t.style.top = Math.max(2, y - t.offsetHeight - 10) + "px";
+    },
+    hide(){ t.classList.remove("on"); }
+  };
+}
+/* Graduations « rondes » couvrant 0→max, en 4 à 6 paliers. */
+function paliers(max, min){
+  min = min || 0;
+  const span = max - min || 1;
+  const brut = span / 4;
+  const mag = Math.pow(10, Math.floor(Math.log10(brut)));
+  const pas = [1, 2, 2.5, 5, 10].map(f => f * mag).find(p => span / p <= 5.5) || mag * 10;
+  const out = [];
+  for (let v = Math.ceil(min / pas) * pas; v <= max + pas * .001; v += pas) out.push(v);
+  return {pas, ticks: out, haut: out.length ? Math.max(max, out[out.length - 1]) : max};
+}
+
+/* ---------- échafaudage de section ---------- */
+function section(hote, titre, lede){
+  const s = document.createElement("section");
+  s.className = "viz";
+  s.innerHTML = `<h2>${esc(titre)}</h2>`
+    + (lede ? `<p class="lede">${esc(lede)}</p>` : "");
+  hote.appendChild(s);
+  return s;
+}
+function figure(parent){
+  const f = document.createElement("div");
+  f.className = "figure";
+  parent.appendChild(f);
+  return f;
+}
+function legende(parent, items, carre){
+  const l = document.createElement("div");
+  l.className = "legend";
+  l.innerHTML = items.map(([c, t]) =>
+    `<span><i class="${carre ? "sq" : ""}" style="background:${c}"></i>${esc(t)}</span>`)
+    .join("");
+  parent.appendChild(l);
+}
+function note(parent, s){
+  const p = document.createElement("p");
+  p.className = "note";
+  p.textContent = s;
+  parent.appendChild(p);
+}
+function tuiles(parent, items){
+  const d = document.createElement("div");
+  d.className = "tiles";
+  d.innerHTML = items.map(([k, l, cl]) =>
+    `<div class="tile"><div class="k ${cl || ""}">${esc(k)}</div>`
+    + `<div class="l">${esc(l)}</div></div>`).join("");
+  parent.appendChild(d);
+  return d;
+}
+/* Barres horizontales étiquetées. Les valeurs sont écrites à côté de chaque barre :
+   trois teintes de la palette passent sous 3:1 sur fond clair, l'étiquette visible
+   est ce qui les rend lisibles malgré tout. */
+function barresH(parent, lignes, opts){
+  opts = opts || {};
+  const max = opts.max || Math.max.apply(null, lignes.map(l => Math.abs(l.valeur) || 0)) || 1;
+  const d = document.createElement("div");
+  d.className = "bars";
+  d.innerHTML = lignes.map(l => {
+    const [em, nm] = emoji(l.label);
+    const w = Math.max(Math.abs(l.valeur || 0) / max * 100, l.valeur ? 1.5 : 0);
+    const cible = l.cible ? `<span class="cible" style="left:calc(${
+      Math.min(l.cible / max * 100, 100)}% - 1px)" title="cible"></span>` : "";
+    return `<div class="bar-row"><div class="bar-top">`
+      + `<span class="nm">${em ? em + " " : ""}${esc(nm)}</span>`
+      + `<span class="vl">${esc(l.affiche || eur(l.valeur))}`
+      + (l.secondaire ? `<s>${esc(l.secondaire)}</s>` : "")
+      + (l.flag ? ` <span class="flag ${l.flag[0]}">${esc(l.flag[1])}</span>` : "")
+      + `</span></div>`
+      + `<div class="track">${cible}`
+      + `<span class="fill" style="width:${w}%;background:${l.couleur || css("--accent")}">`
+      + `</span></div></div>`;
+  }).join("");
+  parent.appendChild(d);
+  return d;
+}
+/* Barres signées : zéro au centre, positif à droite. */
+function barresSignees(parent, lignes){
+  const max = Math.max.apply(null, lignes.map(l => Math.abs(l.valeur || 0))) || 1;
+  const d = document.createElement("div");
+  d.className = "bars";
+  d.innerHTML = lignes.map(l => {
+    const v = l.valeur || 0, w = Math.abs(v) / max * 50;
+    const [em, nm] = emoji(l.label);
+    return `<div class="bar-row"><div class="bar-top">`
+      + `<span class="nm">${em ? em + " " : ""}${esc(nm)}</span>`
+      + `<span class="vl ${v > 0 ? "pos" : v < 0 ? "neg" : ""}">${esc(eurS(v))}</span></div>`
+      + `<div class="track signed"><span class="mid" style="left:50%"></span>`
+      + `<span class="fill" style="${v >= 0 ? "left:50%" : "right:50%"};width:${w}%;`
+      + `background:${v >= 0 ? css("--in") : css("--out")}"></span></div></div>`;
+  }).join("");
+  parent.appendChild(d);
+  return d;
+}
+/* Une cellule est soit du HTML (1re colonne), soit {v, cl} pour un nombre — rendu
+   en chiffres tabulaires —, soit {v, texte:true} pour une colonne de commentaire,
+   qui ne doit pas hériter de la police à chasse fixe. */
+function tableau(parent, entetes, lignes){
+  const cellule = (c, i) => {
+    if (i === 0) return `<td>${c}</td>`;
+    if (c && c.texte) return `<td class="txt">${c.v || ""}</td>`;
+    return `<td class="num ${c && c.cl || ""}">${c && c.v != null ? c.v : (c || "—")}</td>`;
+  };
+  const w = document.createElement("div");
+  w.className = "scroll";
+  w.innerHTML = "<table><thead><tr>"
+    + entetes.map(h => `<th scope="col">${esc(h)}</th>`).join("")
+    + "</tr></thead><tbody>"
+    + lignes.map(r => `<tr class="${r.cl || ""}">`
+      + r.cellules.map(cellule).join("") + "</tr>").join("")
+    + "</tbody></table>";
+  parent.appendChild(w);
+  return w;
+}
+function depliants(parent, items){
+  items.forEach(it => {
+    const b = document.createElement("button");
+    b.className = "fold";
+    b.setAttribute("aria-expanded", "false");
+    b.innerHTML = `<span class="ar">▸</span><span style="min-width:0">`
+      + `<b>${esc(it.titre)}</b><p>${esc(it.texte)}</p></span>`;
+    b.addEventListener("click", () => {
+      const ouvert = b.getAttribute("aria-expanded") === "true";
+      b.setAttribute("aria-expanded", String(!ouvert));
+      b.querySelector("p").classList.toggle("open", !ouvert);
+    });
+    parent.appendChild(b);
+  });
+}
+function insight(parent, titre, texte){
+  const d = document.createElement("div");
+  d.className = "insight";
+  d.innerHTML = `<span class="eyebrow">${esc(titre)}</span><p>${esc(texte)}</p>`;
+  parent.appendChild(d);
+}
+
+/* =========================================================================
+   ONGLET 1 — PATRIMOINE
+   ========================================================================= */
+function chartEvolution(hote){
+  const W = 600, H = 300, L = 48, R = 14, T = 16, B = 28;
+  const ms = MOIS, cls = DATA.classes, n = ms.length;
+  const tot = ms.map((_, i) => cls.reduce((s, c) => s + (c.valeurs[i] || 0), 0));
+  const {ticks, haut} = paliers(Math.max.apply(null, tot));
+  const x = i => L + i * (W - L - R) / (n - 1);
+  const y = v => H - B - (v / haut) * (H - T - B);
+  const s = sv("svg", {viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label":
+    "Patrimoine net par classe d'actif, de " + ms[0] + " à " + ms[n - 1]});
+
+  ticks.forEach(v => {
+    s.appendChild(sv("line", {x1: L, x2: W - R, y1: y(v), y2: y(v),
+      stroke: css("--rule"), "stroke-width": 1}));
+    s.appendChild(txt(L - 8, y(v) + 3.5, kE(v),
+      {"text-anchor": "end", "font-size": 9.5}));
+  });
+
+  // Aires empilées, de la classe la plus stable vers la plus volatile.
+  const cum = ms.map(() => 0);
+  const bornes = [];
+  cls.forEach((c, k) => {
+    const bas = cum.slice();
+    ms.forEach((_, i) => { cum[i] += c.valeurs[i] || 0; });
+    let d = "";
+    ms.forEach((_, i) => { d += (i ? "L" : "M") + x(i).toFixed(1) + " " + y(cum[i]).toFixed(1) + " "; });
+    for (let i = n - 1; i >= 0; i--) d += "L" + x(i).toFixed(1) + " " + y(bas[i]).toFixed(1) + " ";
+    s.appendChild(sv("path", {d: d + "Z", fill: css(SLOTS[k % SLOTS.length])}));
+    if (k < cls.length - 1) bornes.push(cum.slice());
+  });
+  // Séparation de 2px, en couleur de surface, entre deux aires voisines.
+  bornes.forEach(b => {
+    let d = "";
+    ms.forEach((_, i) => { d += (i ? "L" : "M") + x(i).toFixed(1) + " " + y(b[i]).toFixed(1) + " "; });
+    s.appendChild(sv("path", {d, fill: "none", stroke: css("--surface"), "stroke-width": 2}));
+  });
+  // Le sommet = patrimoine net. Tracé plein, avec le dernier point marqué.
+  let dt = "";
+  ms.forEach((_, i) => { dt += (i ? "L" : "M") + x(i).toFixed(1) + " " + y(tot[i]).toFixed(1) + " "; });
+  s.appendChild(sv("path", {d: dt, fill: "none", stroke: css("--ink"), "stroke-width": 1.75,
+    "stroke-linejoin": "round"}));
+  s.appendChild(sv("circle", {cx: x(n - 1), cy: y(tot[n - 1]), r: 4,
+    fill: css("--ink"), stroke: css("--surface"), "stroke-width": 2}));
+
+  ms.forEach((m, i) => {
+    if (n > 8 && i % 2) return;
+    s.appendChild(txt(x(i), H - B + 15, m.replace(" 2026", "").replace(".", ""),
+      {"text-anchor": "middle", "font-size": 9.5}));
+  });
+
+  hote.appendChild(s);
+  const tip = tipFor(hote);
+  const rail = sv("line", {y1: T - 4, y2: H - B, stroke: css("--ink3"),
+    "stroke-width": 1, "stroke-dasharray": "2 3", opacity: 0});
+  s.appendChild(rail);
+  const bouge = ev => {
+    const r = s.getBoundingClientRect();
+    const px = ((ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left) / r.width * W;
+    let i = Math.round((px - L) / ((W - L - R) / (n - 1)));
+    i = Math.max(0, Math.min(n - 1, i));
+    rail.setAttribute("x1", x(i)); rail.setAttribute("x2", x(i)); rail.setAttribute("opacity", 1);
+    const corps = cls.map((c, k) =>
+      `<span style="color:${css(SLOTS[k % SLOTS.length])}">■</span> ${esc(c.label)} `
+      + eur(c.valeurs[i])).reverse().join("<br>");
+    tip.show(x(i) / W * hote.clientWidth, y(tot[i]) / H * (hote.clientHeight - 24) + 14,
+      `<b>${esc(ms[i])}</b> — ${eur(tot[i])}<br>${corps}`);
+  };
+  s.addEventListener("pointermove", bouge);
+  s.addEventListener("pointerleave", () => { tip.hide(); rail.setAttribute("opacity", 0); });
+}
+
+function ongletPatrimoine(hote){
+  const ms = MOIS, i = sel, pat = DATA.patrimoine, rec = DATA.reconciliation;
+  const tot = pat.total[i], prec = i ? pat.total[i - 1] : null;
+  const d = prec == null ? null : tot - prec;
+  const depuis = pat.total[0];
+
+  const hero = document.createElement("div");
+  hero.className = "hero";
+  hero.innerHTML = `<span class="eyebrow">Patrimoine net — ${esc(ms[i])}</span>`
+    + `<div class="k">${eur(tot)}</div><div class="sub">`
+    + (d == null ? "" : `<span class="delta ${d >= 0 ? "up" : "down"}">${eurS(d)}</span>`)
+    + `<span class="ctx">${d == null ? "premier mois suivi"
+      : "vs " + ms[i - 1] + " · " + n1.format(d / prec * 100) + " %"}</span></div>`
+    + `<div class="sub"><span class="ctx">Depuis ${esc(ms[0])} : `
+    + `<b class="mono">${eurS(tot - depuis)}</b> (${n1.format((tot / depuis - 1) * 100)} %)`
+    + `</span></div>`;
+  // Les cours ne s'appliquent qu'au dernier mois : les plaquer sur un mois passé
+  // donnerait un patrimoine historique recalculé avec les prix d'aujourd'hui.
+  if (COURS.etat === "ok" && i === ms.length - 1) {
+    const live = totauxLive();
+    const dl = Object.values(live).reduce((a, g) => a + g.live - g.tracker, 0);
+    hero.insertAdjacentHTML("beforeend",
+      `<div class="sub">${badgeCours()}<span class="ctx">Avec les cours du jour : `
+      + `<b class="mono">${eur(tot + dl)}</b> (${eurS(dl)} sur le PEA et la crypto)`
+      + `</span></div>`);
+  }
+  hote.appendChild(hero);
+
+  const march = at(rec.bridge[0], rec.mois), amort = at(rec.bridge[1], rec.mois);
+  const liq = at(rec.bridge[2], rec.mois);
+  tuiles(hote, [
+    [eurS(march), "Gains marchés", march >= 0 ? "pos" : "neg"],
+    [eurS(amort), "Amortissement prêts", "pos"],
+    [eurS(liq), "Δ liquidités", liq >= 0 ? "pos" : "neg"],
+    [pc(at(DATA.pl.flux.taux_epargne, DATA.pl.mois)), "Taux d'épargne"],
+  ]);
+
+  let s = section(hote, "Évolution par classe d'actif",
+    "Le sommet de l'aire est le patrimoine net. Touche le graphique pour lire un mois.");
+  const f = figure(s);
+  chartEvolution(f);
+  legende(f, DATA.classes.map((c, k) => [css(SLOTS[k % SLOTS.length]), c.label]), true);
+  // Les noms d'établissements viennent du chiffré, jamais du gabarit : ce fichier
+  // est publié en clair et nommerait sinon les banques de qui le consulte.
+  const treso = DATA.classes.find(c => c.cle === "liquide");
+  note(f, (treso && treso.detail.length > 1
+      ? "Les " + treso.detail.length + " comptes de trésorerie — "
+        + treso.detail.map(d => nom(d).toLowerCase()).join(", ") + " — sont regroupés "
+        + "en « Liquidités ». " : "")
+    + "Le compte courant n'est suivi comme actif que depuis septembre 2026 : avant, "
+    + "il était hors patrimoine.");
+
+  // --- composition du mois
+  s = section(hote, "Composition — " + ms[i],
+    "Part de chaque classe dans le patrimoine net.");
+  const cls = DATA.classes.map((c, k) => ({
+    label: c.label, valeur: c.valeurs[i], couleur: css(SLOTS[k % SLOTS.length]),
+    secondaire: c.valeurs[i] == null ? "" : n1.format(c.valeurs[i] / tot * 100) + " %",
+  })).sort((a, b) => (b.valeur || 0) - (a.valeur || 0));
+  barresH(s, cls, {max: Math.max.apply(null, cls.map(c => c.valeur || 0))});
+
+  // --- détail ligne à ligne
+  s = section(hote, "Détail par ligne",
+    "Valeurs du classeur de suivi, groupe par groupe, avec la variation sur un mois.");
+  const lignes = [];
+  pat.groupes.forEach(g => {
+    lignes.push({cl: "grp", cellules: [esc(g.titre), "", ""]});
+    g.lignes.forEach(l => {
+      const v = l.valeurs[i], p = i ? l.valeurs[i - 1] : null;
+      const dd = (v == null || p == null) ? null : v - p;
+      lignes.push({cellules: [
+        esc(l.label) + (l.note ? `<span class="hint">${esc(l.note)}</span>` : ""),
+        {v: eur(v)},
+        {v: dd == null ? "—" : eurS(dd), cl: dd > 0 ? "pos" : dd < 0 ? "neg" : ""},
+      ]});
+    });
+    if (g.total) {
+      const v = g.total[i], p = i ? g.total[i - 1] : null;
+      const dd = (v == null || p == null) ? null : v - p;
+      lignes.push({cl: "tot", cellules: [esc(g.label_total || "Total"), {v: eur(v)},
+        {v: dd == null ? "—" : eurS(dd), cl: dd > 0 ? "pos" : dd < 0 ? "neg" : ""}]});
+    }
+  });
+  lignes.push({cl: "tot", cellules: ["🏆 Patrimoine net", {v: eur(tot)},
+    {v: d == null ? "—" : eurS(d), cl: d > 0 ? "pos" : d < 0 ? "neg" : ""}]});
+  tableau(s, ["Ligne", ms[i], i ? "Δ vs " + ms[i - 1] : "Δ"], lignes);
+  if (pat.note) note(s, pat.note);
+
+  // --- allocation PEA
+  const etf = DATA.repartition.etf;
+  if (etf.length) {
+    s = section(hote, "Allocation du PEA", "Cible : 80 % monde développé, 20 % Asie émergente.");
+    const totPEA = etf.reduce((a, e) => a + (e.valeur || 0), 0);
+    barresH(s, etf.map((e, k) => ({
+      label: e.label, valeur: e.valeur, couleur: css(SLOTS[k % SLOTS.length]),
+      secondaire: n1.format((e.valeur || 0) / totPEA * 100) + " % · cible " + (e.cible || "—"),
+    })), {max: totPEA});
+    note(s, "Frais courants : " + etf.filter(e => e.ter && e.ter !== "—")
+      .map(e => nom(e.label).split(" ")[0] + " " + e.ter).join(" · ") + ".");
+  }
+
+  // --- alertes
+  const al = DATA.repartition.alertes;
+  if (al.length) {
+    s = section(hote, "Points d'attention", "Issus du classeur de suivi. Touche pour déplier.");
+    depliants(s, al);
+  }
+}
+
+/* =========================================================================
+   ONGLET 2 — FLUX
+   ========================================================================= */
+function chartFluxGroupes(hote){
+  const W = 600, H = 240, L = 46, R = 10, T = 14, B = 32;
+  const ms = DATA.pl.mois, n = ms.length;
+  const inn = DATA.pl.flux.cash_in.valeurs, out = DATA.pl.flux.cash_out.valeurs;
+  const {ticks, haut} = paliers(Math.max.apply(null,
+    inn.concat(out).map(v => v || 0)));
+  const y = v => H - B - (v / haut) * (H - T - B);
+  const pas = (W - L - R) / n, bw = Math.min(14, pas / 2.6);
+  const s = sv("svg", {viewBox: `0 0 ${W} ${H}`, role: "img",
+    "aria-label": "Entrées et sorties de trésorerie par mois"});
+
+  ticks.forEach(v => {
+    s.appendChild(sv("line", {x1: L, x2: W - R, y1: y(v), y2: y(v),
+      stroke: css("--rule"), "stroke-width": 1}));
+    s.appendChild(txt(L - 8, y(v) + 3.5, kE(v),
+      {"text-anchor": "end", "font-size": 9.5}));
+  });
+  ms.forEach((m, i) => {
+    const cx = L + pas * (i + .5);
+    // 2px de surface entre les deux barres d'un même mois.
+    [[inn[i], css("--in"), cx - bw - 1], [out[i], css("--out"), cx + 1]].forEach(([v, c, bx]) => {
+      if (v == null) return;
+      s.appendChild(sv("path", {d: barV(bx, bw, y(0), y(v), 4), fill: c}));
+    });
+    s.appendChild(txt(cx, H - B + 15, m.replace(" 2026", "").replace(".", ""),
+      {"text-anchor": "middle", "font-size": 9.5}));
+  });
+  s.appendChild(sv("line", {x1: L, x2: W - R, y1: y(0), y2: y(0),
+    stroke: css("--rule-strong"), "stroke-width": 1}));
+  hote.appendChild(s);
+
+  const tip = tipFor(hote);
+  const move = ev => {
+    const r = s.getBoundingClientRect();
+    const px = ((ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left) / r.width * W;
+    const i = Math.max(0, Math.min(n - 1, Math.floor((px - L) / pas)));
+    const net = (inn[i] || 0) - (out[i] || 0);
+    tip.show(L + pas * (i + .5), y(Math.max(inn[i] || 0, out[i] || 0)) / H
+      * (hote.clientHeight - 24) + 14,
+      `<b>${esc(ms[i])}</b><br>entrées ${eur(inn[i])}<br>sorties ${eur(out[i])}`
+      + `<br>net ${eurS(net)}`);
+  };
+  s.addEventListener("pointermove", move);
+  s.addEventListener("pointerleave", () => tip.hide());
+}
+
+function chartSolde(hote){
+  const W = 600, H = 190, L = 46, R = 10, T = 18, B = 32;
+  const ms = DATA.pl.mois, n = ms.length, v = DATA.pl.flux.solde.valeurs;
+  const hi = Math.max.apply(null, v.map(x => x || 0));
+  const lo = Math.min.apply(null, v.map(x => x || 0));
+  const {ticks, haut} = paliers(hi, Math.min(lo, 0));
+  const bas = Math.min(lo, 0), etendue = haut - bas;
+  const y = x => H - B - ((x - bas) / etendue) * (H - T - B);
+  const pas = (W - L - R) / n, bw = Math.min(26, pas * .6);
+  const s = sv("svg", {viewBox: `0 0 ${W} ${H}`, role: "img",
+    "aria-label": "Solde net mensuel : entrées moins sorties"});
+  ticks.concat(bas).forEach(t => {
+    s.appendChild(sv("line", {x1: L, x2: W - R, y1: y(t), y2: y(t),
+      stroke: css("--rule"), "stroke-width": 1}));
+    s.appendChild(txt(L - 8, y(t) + 3.5, kE(t), {"text-anchor": "end", "font-size": 9.5}));
+  });
+  const pire = v.indexOf(lo);
+  ms.forEach((m, i) => {
+    const cx = L + pas * (i + .5);
+    if (v[i] != null) {
+      s.appendChild(sv("path", {d: barV(cx - bw / 2, bw, y(0), y(v[i]), 4),
+        fill: v[i] >= 0 ? css("--in") : css("--out")}));
+      // Étiquettes directes sur les deux points qui portent l'information :
+      // le mois en cours et le pire mois de la série.
+      if (i === n - 1 || i === pire) {
+        s.appendChild(txt(cx, v[i] >= 0 ? y(v[i]) - 6 : y(v[i]) + 13, eurS(v[i]), {
+          "text-anchor": "middle", "font-size": 10, "font-weight": 600,
+          fill: v[i] >= 0 ? css("--in") : css("--out")}));
+      }
+    }
+    s.appendChild(txt(cx, H - B + 15, m.replace(" 2026", "").replace(".", ""),
+      {"text-anchor": "middle", "font-size": 9.5}));
+  });
+  s.appendChild(sv("line", {x1: L, x2: W - R, y1: y(0), y2: y(0),
+    stroke: css("--rule-strong"), "stroke-width": 1.25}));
+  hote.appendChild(s);
+}
+
+function chartTaux(hote){
+  const W = 600, H = 170, L = 42, R = 12, T = 16, B = 32;
+  const ms = DATA.pl.mois, n = ms.length, v = DATA.pl.flux.taux_epargne.valeurs;
+  const bas = Math.min(0, Math.min.apply(null, v.map(x => x == null ? 0 : x)));
+  const haut = Math.max(.8, Math.max.apply(null, v.map(x => x || 0)));
+  const x = i => L + i * (W - L - R) / (n - 1);
+  const y = t => H - B - ((t - bas) / (haut - bas)) * (H - T - B);
+  const s = sv("svg", {viewBox: `0 0 ${W} ${H}`, role: "img",
+    "aria-label": "Taux d'épargne brut par mois"});
+  for (let t = Math.ceil(bas * 5) / 5; t <= haut + .001; t += .2) {
+    s.appendChild(sv("line", {x1: L, x2: W - R, y1: y(t), y2: y(t),
+      stroke: Math.abs(t) < .001 ? css("--rule-strong") : css("--rule"), "stroke-width": 1}));
+    s.appendChild(txt(L - 8, y(t) + 3.5, Math.round(t * 100) + " %",
+      {"text-anchor": "end", "font-size": 9.5}));
+  }
+  let d = "";
+  v.forEach((t, i) => { if (t != null) d += (d ? "L" : "M") + x(i) + " " + y(t) + " "; });
+  s.appendChild(sv("path", {d, fill: "none", stroke: css("--accent"), "stroke-width": 2,
+    "stroke-linejoin": "round", "stroke-linecap": "round"}));
+  v.forEach((t, i) => {
+    if (t == null) return;
+    s.appendChild(sv("circle", {cx: x(i), cy: y(t), r: i === n - 1 ? 4.5 : 3.2,
+      fill: i === n - 1 ? css("--accent") : css("--surface"),
+      stroke: css("--accent"), "stroke-width": 2}));
+  });
+  s.appendChild(txt(x(n - 1), y(v[n - 1]) - 9, pc(v[n - 1]),
+    {"text-anchor": "end", "font-size": 10.5, "font-weight": 600, fill: css("--accent")}));
+  ms.forEach((m, i) => s.appendChild(txt(x(i), H - B + 15,
+    m.replace(" 2026", "").replace(".", ""), {"text-anchor": "middle", "font-size": 9.5})));
+  hote.appendChild(s);
+}
+
+function ongletFlux(hote){
+  const pl = DATA.pl, rec = DATA.reconciliation, pm = pl.mois;
+  const i = idx(pm, moisSel());
+  const inn = i < 0 ? null : pl.flux.cash_in.valeurs[i];
+  const out = i < 0 ? null : pl.flux.cash_out.valeurs[i];
+  const solde = i < 0 ? null : pl.flux.solde.valeurs[i];
+
+  const hero = document.createElement("div");
+  hero.className = "hero";
+  hero.innerHTML = `<span class="eyebrow">Solde net — ${esc(moisSel())}</span>`
+    + `<div class="k ${solde >= 0 ? "pos" : "neg"}">${eurS(solde)}</div>`
+    + `<div class="sub"><span class="ctx">${eur(inn)} encaissés · ${eur(out)} dépensés`
+    + ` · taux d'épargne ${pc(i < 0 ? null : pl.flux.taux_epargne.valeurs[i])}</span></div>`;
+  hote.appendChild(hero);
+
+  let s = section(hote, "Entrées et sorties",
+    "Tout ce qui passe par le compte courant : salaire, loyers, notes de frais d'un côté ; "
+    + "dépenses courantes, charges fixes et paiements directs de l'autre.");
+  let f = figure(s);
+  chartFluxGroupes(f);
+  legende(f, [[css("--in"), "Entrées"], [css("--out"), "Sorties"]], true);
+
+  s = section(hote, "Solde net mensuel",
+    "Ce qui reste sur le compte courant avant d'investir.");
+  f = figure(s);
+  chartSolde(f);
+  // Le classeur porte deux soldes pour un même mois : celui du P&L et celui de la
+  // réconciliation, calculés sur des totaux de dépenses différents. Quand ils
+  // divergent, le dire plutôt que d'en afficher un seul sans prévenir.
+  const ir0 = idx(rec.mois, moisSel());
+  const sRec = ir0 < 0 ? null : rec.solde.valeurs[ir0];
+  if (sRec != null && solde != null && Math.abs(sRec - solde) > 1) {
+    note(f, "Sur " + moisSel() + " le classeur porte deux soldes : " + eurS(solde)
+      + " au P&L et " + eurS(sRec) + " à la réconciliation. L'écart vient du total "
+      + "de dépenses retenu — c'est celui du P&L qui est tracé ici.");
+  }
+
+  s = section(hote, "Taux d'épargne brut", "Solde net rapporté aux encaissements du mois.");
+  f = figure(s);
+  chartTaux(f);
+
+  // --- composition des encaissements
+  s = section(hote, "D'où vient l'argent — " + moisSel(),
+    "Les notes de frais remboursent le montant marchand, jamais les frais de change.");
+  const ir = idx(rec.mois, moisSel());
+  if (ir < 0) {
+    note(s, "Pas de détail de trésorerie pour ce mois dans le classeur.");
+  } else {
+    const src = rec.tresorerie.filter(l => l.valeurs[ir]).map((l, k) => ({
+      label: l.label, valeur: l.valeurs[ir], couleur: css(SLOTS[k % SLOTS.length]),
+    }));
+    barresH(s, src);
+    const t = src.reduce((a, b) => a + b.valeur, 0);
+    note(s, "Total encaissé " + eur(t) + " · " + eur(t * 12) + " sur douze mois "
+      + "à ce rythme.");
+  }
+
+  // --- où va le solde
+  s = section(hote, "Où va le solde", "Destination du cash resté sur le compte courant.");
+  if (ir < 0) {
+    note(s, "Pas de bridge disponible pour ce mois.");
+  } else {
+    barresSignees(s, rec.par_actif.map(l => ({label: l.label, valeur: l.valeurs[ir]})));
+    note(s, "Positif : l'actif a monté ce mois-ci. Négatif : il a reculé, par retrait ou par "
+      + "marché. Un transfert d'un actif suivi vers le compte courant faisait baisser le "
+      + "patrimoine sans appauvrissement réel — c'est corrigé depuis septembre 2026.");
+  }
+  const note_in = pl.flux.cash_in.note;
+  if (note_in) insight(hote, "Encaissements du mois", note_in);
+}
+
+/* =========================================================================
+   ONGLET 3 — DÉPENSES
+   ========================================================================= */
+function chartBudget(hote){
+  const W = 600, H = 210, L = 46, R = 12, T = 22, B = 32;
+  const ms = DATA.pl.mois, n = ms.length, v = DATA.pl.total_courant.valeurs;
+  const bud = DATA.pl.flux.budget.valeurs;
+  const cible = bud.filter(x => x != null).pop() || 1600;
+  const {ticks, haut} = paliers(Math.max(cible, Math.max.apply(null, v.map(x => x || 0))));
+  const y = t => H - B - (t / haut) * (H - T - B);
+  const pas = (W - L - R) / n, bw = Math.min(28, pas * .62);
+  const s = sv("svg", {viewBox: `0 0 ${W} ${H}`, role: "img",
+    "aria-label": "Dépenses courantes par mois, face au budget mensuel"});
+  ticks.forEach(t => {
+    s.appendChild(sv("line", {x1: L, x2: W - R, y1: y(t), y2: y(t),
+      stroke: css("--rule"), "stroke-width": 1}));
+    s.appendChild(txt(L - 8, y(t) + 3.5, kE(t),
+      {"text-anchor": "end", "font-size": 9.5}));
+  });
+  ms.forEach((m, i) => {
+    const cx = L + pas * (i + .5);
+    if (v[i] != null) {
+      const trop = v[i] > cible;
+      s.appendChild(sv("path", {d: barV(cx - bw / 2, bw, y(0), y(v[i]), 4),
+        fill: trop ? css("--out") : css("--c1")}));
+      if (trop) s.appendChild(txt(cx, y(v[i]) - 6, "+" + n0.format(Math.round(v[i] - cible)),
+        {"text-anchor": "middle", "font-size": 9.5, "font-weight": 600, fill: css("--out")}));
+    }
+    s.appendChild(txt(cx, H - B + 15, m.replace(" 2026", "").replace(".", ""),
+      {"text-anchor": "middle", "font-size": 9.5}));
+  });
+  s.appendChild(sv("line", {x1: L, x2: W - R, y1: y(cible), y2: y(cible),
+    stroke: css("--ink2"), "stroke-width": 1.5, "stroke-dasharray": "5 4"}));
+  // À gauche : à droite l'étiquette passerait derrière le dépassement du dernier mois.
+  s.appendChild(txt(L + 3, y(cible) - 6, "budget " + n0.format(cible) + " €",
+    {"text-anchor": "start", "font-size": 10, "font-weight": 600, fill: css("--ink2"),
+      "font-family": "IBM Plex Sans, sans-serif"}));
+  s.appendChild(sv("line", {x1: L, x2: W - R, y1: y(0), y2: y(0),
+    stroke: css("--rule-strong"), "stroke-width": 1}));
+  hote.appendChild(s);
+}
+
+function chartConsolide(hote){
+  const W = 600, H = 230, L = 46, R = 12, T = 14, B = 32;
+  const pl = DATA.pl, ms = pl.mois, n = ms.length;
+  const series = [
+    {label: "Dépenses courantes", v: pl.total_courant.valeurs, c: css("--c1")},
+    {label: "Charges fixes", v: pl.total_fixes.valeurs, c: css("--c2")},
+    {label: "Paiements directs", v: pl.total_directes.valeurs, c: css("--c3")},
+  ];
+  const tot = ms.map((_, i) => series.reduce((a, s2) => a + (s2.v[i] || 0), 0));
+  const {ticks, haut} = paliers(Math.max.apply(null, tot));
+  const y = t => H - B - (t / haut) * (H - T - B);
+  const pas = (W - L - R) / n, bw = Math.min(30, pas * .64);
+  const s = sv("svg", {viewBox: `0 0 ${W} ${H}`, role: "img",
+    "aria-label": "Dépenses consolidées par mois : courant, charges fixes et paiements directs"});
+  ticks.forEach(t => {
+    s.appendChild(sv("line", {x1: L, x2: W - R, y1: y(t), y2: y(t),
+      stroke: css("--rule"), "stroke-width": 1}));
+    s.appendChild(txt(L - 8, y(t) + 3.5, kE(t),
+      {"text-anchor": "end", "font-size": 9.5}));
+  });
+  ms.forEach((m, i) => {
+    const cx = L + pas * (i + .5) - bw / 2;
+    let base = 0;
+    series.forEach(s2 => {
+      const val = s2.v[i] || 0;
+      if (!val) return;
+      // 2px de surface entre deux segments empilés.
+      const y0 = y(base), y1 = y(base + val);
+      s.appendChild(sv("rect", {x: cx, y: y1, width: bw,
+        height: Math.max(1, y0 - y1 - (base ? 2 : 0)), fill: s2.c, rx: 1}));
+      base += val;
+    });
+    s.appendChild(txt(cx + bw / 2, H - B + 15, m.replace(" 2026", "").replace(".", ""),
+      {"text-anchor": "middle", "font-size": 9.5}));
+  });
+  s.appendChild(sv("line", {x1: L, x2: W - R, y1: y(0), y2: y(0),
+    stroke: css("--rule-strong"), "stroke-width": 1}));
+  hote.appendChild(s);
+
+  const tip = tipFor(hote);
+  const move = ev => {
+    const r = s.getBoundingClientRect();
+    const px = ((ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left) / r.width * W;
+    const i = Math.max(0, Math.min(n - 1, Math.floor((px - L) / pas)));
+    tip.show(L + pas * (i + .5), y(tot[i]) / H * (hote.clientHeight - 24) + 14,
+      `<b>${esc(ms[i])}</b> — ${eur(tot[i])}<br>`
+      + series.map(s2 => `<span style="color:${s2.c}">■</span> ${esc(s2.label)} `
+        + eur(s2.v[i])).join("<br>"));
+  };
+  s.addEventListener("pointermove", move);
+  s.addEventListener("pointerleave", () => tip.hide());
+}
+
+function ongletDepenses(hote){
+  const pl = DATA.pl, pm = pl.mois, i = idx(pm, moisSel());
+  const cible = pl.flux.budget.valeurs.filter(x => x != null).pop() || 1600;
+  const rev = i < 0 ? null : pl.total_courant.valeurs[i];
+  const cons = i < 0 ? null : pl.flux.consolide.valeurs[i];
+
+  const hero = document.createElement("div");
+  hero.className = "hero";
+  hero.innerHTML = `<span class="eyebrow">Dépenses consolidées — ${esc(moisSel())}</span>`
+    + `<div class="k">${eur(cons)}</div><div class="sub">`
+    + `<span class="delta ${rev > cible ? "down" : "up"}">`
+    + (rev == null ? "—" : eurS(rev - cible)) + " vs budget</span>"
+    + `<span class="ctx">${eur(rev)} dépensés sur ${n0.format(cible)} € alloués</span></div>`;
+  hote.appendChild(hero);
+
+  tuiles(hote, [
+    [eur(i < 0 ? null : pl.total_courant.valeurs[i]), "Dépenses courantes"],
+    [eur(i < 0 ? null : pl.total_fixes.valeurs[i]), "Charges fixes"],
+    [eur(i < 0 ? null : pl.total_directes.valeurs[i]), "Paiements directs"],
+  ]);
+
+  let s = section(hote, "Budget courant tenu, mois par mois",
+    "Les dépenses du compte courant face au virement mensuel de " + n0.format(cible) + " €.");
+  let f = figure(s);
+  chartBudget(f);
+  if (pl.total_courant.note) note(f, pl.total_courant.note);
+
+  // --- catégories vs cible
+  s = section(hote, "Par catégorie — " + moisSel(),
+    "Le trait vertical marque la cible mensuelle de la catégorie.");
+  if (i < 0) {
+    note(s, "Pas de P&L pour ce mois.");
+  } else {
+    const cats = pl.categories
+      .map(c => ({c, v: c.valeurs[i]}))
+      .filter(o => o.v)
+      .sort((a, b) => Math.abs(b.v) - Math.abs(a.v))
+      .map(({c, v}) => {
+        let flag = null;
+        if (c.budget) {
+          const ecart = v - c.budget;
+          flag = ecart > c.budget * .1 ? ["over", eurS(ecart)]
+            : ecart > 0 ? ["watch", eurS(ecart)] : ["ok", eurS(ecart)];
+        }
+        return {label: c.label, valeur: v, cible: c.budget,
+          couleur: v > (c.budget || Infinity) ? css("--out") : css("--c1"), flag};
+      });
+    barresH(s, cats);
+    note(s, "Les catégories sans cible — voyages, « autre » — ne sont pas budgétées : "
+      + "elles se lisent en tendance, pas en dépassement.");
+  }
+
+  s = section(hote, "Vision consolidée",
+    "Les trois canaux de dépense réunis : le compte dédié aux dépenses courantes, "
+    + "et le compte principal pour les charges fixes et les paiements passés dessus.");
+  f = figure(s);
+  chartConsolide(f);
+  legende(f, [[css("--c1"), "Dépenses courantes"], [css("--c2"), "Charges fixes"],
+    [css("--c3"), "Paiements directs"]], true);
+  if (pl.flux.consolide.note) note(f, pl.flux.consolide.note);
+
+  // --- charges fixes
+  s = section(hote, "Charges fixes — " + moisSel(),
+    "Le socle incompressible. Il ne bouge que si un contrat change.");
+  if (i >= 0) {
+    barresH(s, pl.fixes.filter(l => l.valeurs[i]).map(l => ({
+      label: l.label, valeur: l.valeurs[i], couleur: css("--c2"),
+    })));
+    note(s, "Total " + eur(pl.total_fixes.valeurs[i]) + " · "
+      + (pl.total_fixes.note || ""));
+  }
+
+  // --- faits marquants
+  // « Sept. 2026 » doit retrouver le bloc « SEPTEMBRE 2026 », « Avr. 2026 » le bloc
+  // « AVR. 2026 » : on compare sur les trois premières lettres, points retirés.
+  const cle = moisSel().toLowerCase().replace(/\./g, "").slice(0, 3);
+  const bloc = pl.faits.find(b => b.titre.toLowerCase().replace(/\./g, "")
+    .startsWith(cle));
+  const aff = bloc || pl.faits[0];
+  if (aff) {
+    s = section(hote, "Dépenses inhabituelles — " + aff.titre.toLowerCase(),
+      bloc ? "Ce qui explique l'écart du mois. Touche pour déplier."
+        : "Aucun relevé de faits marquants pour " + moisSel()
+          + " — voici le dernier mois documenté.");
+    depliants(s, aff.faits.map(f2 => ({titre: nom(f2.titre), texte: f2.texte})));
+  }
+}
+
+/* =========================================================================
+   ONGLET 4 — IMMOBILIER
+   ========================================================================= */
+function chartEquity(hote){
+  const W = 600, H = 250, L = 48, R = 12, T = 14, B = 32;
+  const im = DATA.immobilier, ms = im.mois, n = ms.length;
+  const valeur = im.financement[0].valeurs;
+  const parental = im.financement[2].valeurs;
+  const bancaire = im.financement[3].valeurs;
+  const eq = im.equity.valeurs;
+  const {ticks, haut} = paliers(Math.max.apply(null, valeur.map(v => v || 0)));
+  const y = t => H - B - (t / haut) * (H - T - B);
+  const pas = (W - L - R) / n, bw = Math.min(40, pas * .66);
+  const s = sv("svg", {viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label":
+    "Décomposition de la valeur de l'appartement entre equity et capital restant dû"});
+  ticks.forEach(t => {
+    s.appendChild(sv("line", {x1: L, x2: W - R, y1: y(t), y2: y(t),
+      stroke: css("--rule"), "stroke-width": 1}));
+    s.appendChild(txt(L - 8, y(t) + 3.5, kE(t),
+      {"text-anchor": "end", "font-size": 9.5}));
+  });
+  ms.forEach((m, i) => {
+    const x0 = L + pas * (i + .5) - bw / 2;
+    let base = 0;
+    [[eq[i], css("--c3")], [Math.abs(bancaire[i] || 0), css("--c2")],
+      [Math.abs(parental[i] || 0), css("--c1")]].forEach(([v, c], k) => {
+      if (!v) return;
+      const y0 = y(base), y1 = y(base + v);
+      s.appendChild(sv("rect", {x: x0, y: y1, width: bw,
+        height: Math.max(1, y0 - y1 - (k ? 2 : 0)), fill: c, rx: 1}));
+      base += v;
+    });
+    s.appendChild(txt(x0 + bw / 2, H - B + 15, m.replace(" 2026", "").replace(".", ""),
+      {"text-anchor": "middle", "font-size": 9.5}));
+  });
+  hote.appendChild(s);
+  const tip = tipFor(hote);
+  const move = ev => {
+    const r = s.getBoundingClientRect();
+    const px = ((ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left) / r.width * W;
+    const i = Math.max(0, Math.min(n - 1, Math.floor((px - L) / pas)));
+    tip.show(L + pas * (i + .5), y(valeur[i]) / H * (hote.clientHeight - 24) + 14,
+      `<b>${esc(ms[i])}</b> — ${eur(valeur[i])}<br>`
+      + `<span style="color:${css("--c3")}">■</span> equity ${eur(eq[i])}<br>`
+      + `<span style="color:${css("--c2")}">■</span> prêt 3,75 % ${eur(Math.abs(bancaire[i]))}`
+      + `<br><span style="color:${css("--c1")}">■</span> prêt parental `
+      + eur(Math.abs(parental[i])));
+  };
+  s.addEventListener("pointermove", move);
+  s.addEventListener("pointerleave", () => tip.hide());
+}
+
+/* Cascade : une barre de départ, des deltas, une barre d'arrivée. Base à zéro. */
+function cascade(hote, etapes, label){
+  const W = 600, H = 240, L = 48, R = 12, T = 26, B = 46;
+  let cur = 0;
+  const geom = etapes.map(e => {
+    if (e.type === "start" || e.type === "end") {
+      const g = {de: 0, a: e.valeur, v: e.valeur, e};
+      cur = e.valeur;
+      return g;
+    }
+    const g = {de: cur, a: cur + e.valeur, v: e.valeur, e};
+    cur += e.valeur;
+    return g;
+  });
+  const vals = geom.flatMap(g => [g.de, g.a]).concat([0]);
+  const hi = Math.max.apply(null, vals), lo = Math.min.apply(null, vals);
+  const {ticks, haut} = paliers(hi, Math.min(lo, 0));
+  const bas = Math.min(lo, 0), etendue = (haut - bas) || 1;
+  const y = t => H - B - ((t - bas) / etendue) * (H - T - B);
+  const pas = (W - L - R) / geom.length, bw = Math.min(46, pas * .62);
+  const s = sv("svg", {viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": label});
+  ticks.concat(bas).forEach(t => {
+    s.appendChild(sv("line", {x1: L, x2: W - R, y1: y(t), y2: y(t),
+      stroke: Math.abs(t) < .001 ? css("--rule-strong") : css("--rule"), "stroke-width": 1}));
+    s.appendChild(txt(L - 8, y(t) + 3.5, kE(t), {"text-anchor": "end", "font-size": 9.5}));
+  });
+  geom.forEach((g, i) => {
+    const x0 = L + pas * (i + .5) - bw / 2;
+    const borne = g.e.type === "start" || g.e.type === "end";
+    const c = borne ? css("--ink2") : g.v >= 0 ? css("--in") : css("--out");
+    s.appendChild(sv("path", {d: barV(x0, bw, y(g.de), y(g.a), 4), fill: c}));
+    const sommet = Math.min(y(g.de), y(g.a));
+    s.appendChild(txt(x0 + bw / 2, sommet - 7, borne ? eur(g.v) : eurS(g.v), {
+      "text-anchor": "middle", "font-size": 10, "font-weight": 600, fill: c}));
+    if (i < geom.length - 1 && !borne) {
+      s.appendChild(sv("line", {x1: x0 + bw, x2: x0 + pas, y1: y(g.a), y2: y(g.a),
+        stroke: css("--rule-strong"), "stroke-width": 1, "stroke-dasharray": "2 3"}));
+    }
+    // Les libellés de cascade sont des groupes nominaux courts : deux lignes
+    // suffisent, et les couper par le milieu évite une 1re ligne d'un seul mot.
+    const mots = emoji(g.e.label)[1].split(" ");
+    const l1 = mots.slice(0, Math.ceil(mots.length / 2)).join(" ");
+    const l2 = mots.slice(Math.ceil(mots.length / 2)).join(" ");
+    s.appendChild(txt(x0 + bw / 2, H - B + 15, l1, {"text-anchor": "middle",
+      "font-size": 9.5, "font-family": "IBM Plex Sans, sans-serif"}));
+    if (l2) s.appendChild(txt(x0 + bw / 2, H - B + 26, l2, {"text-anchor": "middle",
+      "font-size": 9.5, "font-family": "IBM Plex Sans, sans-serif"}));
+  });
+  hote.appendChild(s);
+}
+
+function ongletImmo(hote){
+  const im = DATA.immobilier, ms = im.mois, i = idx(ms, moisSel());
+  const j = i < 0 ? ms.length - 1 : i;
+  const eq = im.equity.valeurs[j], val = im.financement[0].valeurs[j];
+  const prec = j ? im.equity.valeurs[j - 1] : null;
+
+  const hero = document.createElement("div");
+  hero.className = "hero";
+  hero.innerHTML = `<span class="eyebrow">${esc(nom(im.equity.label))} — ${esc(ms[j])}</span>`
+    + `<div class="k">${eur(eq)}</div><div class="sub">`
+    + (prec == null ? "" : `<span class="delta up">${eurS(eq - prec)}</span>`)
+    + `<span class="ctx">sur ${eur(val)} de valeur estimée · `
+    + n1.format(eq / val * 100) + " % détenu</span></div>";
+  hote.appendChild(hero);
+
+  const cf = im.net;
+  tuiles(hote, [
+    [eur(im.cashflow[0].mois), "Loyers encaissés"],
+    [eurS(cf.mois), "Cash-flow net", cf.mois >= 0 ? "pos" : "neg"],
+    [eur(cf.annuel), "Sur 12 mois"],
+  ]);
+
+  let s = section(hote, "Ce qui est à toi, ce qui est à la banque",
+    "La valeur de l'appartement ne bouge pas. Ce qui bouge, c'est la part remboursée.");
+  let f = figure(s);
+  chartEquity(f);
+  legende(f, [[css("--c3"), "Equity nette"], [css("--c2"), "Prêt bancaire 3,75 %"],
+    [css("--c1"), "Prêt parental 0 %"]], true);
+  if (im.source) note(f, im.source.replace(/^📌\s*/, ""));
+
+  s = section(hote, "Cash-flow mensuel",
+    "Du loyer brut au net dans la poche, poste par poste.");
+  f = figure(s);
+  cascade(f, [{label: "Loyers", valeur: im.cashflow[0].mois, type: "start"}]
+    .concat(im.cashflow.slice(1).filter(l => l.mois).map(l => ({
+      label: nom(l.label).replace(/^−\s*/, ""), valeur: l.mois, type: "delta"})))
+    .concat([{label: "Net", valeur: cf.mois, type: "end"}]),
+    "Cascade du loyer brut au cash-flow net mensuel");
+  if (cf.note) note(f, cf.note);
+
+  s = section(hote, "Détail du financement", "");
+  tableau(s, ["Poste", ms[j], j ? "Δ vs " + ms[j - 1] : "Δ"],
+    im.financement.concat([im.equity]).map((l, k) => {
+      const v = l.valeurs[j], p = j ? l.valeurs[j - 1] : null;
+      const d = (v == null || p == null) ? null : v - p;
+      return {cl: k === 4 ? "tot" : "", cellules: [esc(nom(l.label)), {v: eur(v)},
+        {v: d == null ? "—" : eurS(d), cl: d > 0 ? "pos" : d < 0 ? "neg" : ""}]};
+    }));
+
+  s = section(hote, "Charges et loyers", "");
+  tableau(s, ["Poste", "Par mois", "Sur 12 mois"],
+    im.cashflow.map(l => ({cellules: [
+      esc(nom(l.label)) + (l.note ? `<span class="hint">${esc(l.note)}</span>` : ""),
+      {v: l.mois == null ? "—" : eurS(l.mois), cl: l.mois > 0 ? "pos" : l.mois < 0 ? "neg" : ""},
+      {v: l.annuel == null ? "—" : eurS(l.annuel)}]}))
+      .concat([{cl: "tot", cellules: ["Cash-flow net",
+        {v: eurS(cf.mois), cl: "pos"}, {v: eurS(cf.annuel), cl: "pos"}]}]));
+
+  if (im.nue_propriete) insight(hote, "Nue-propriété", im.nue_propriete);
+}
+
+/* =========================================================================
+   ONGLET 5 — BRIDGE
+   ========================================================================= */
+function ongletBridge(hote){
+  const rec = DATA.reconciliation, i = idx(rec.mois, moisSel());
+  if (i < 0) {
+    section(hote, "Bridge — " + moisSel(),
+      "Pas de réconciliation pour ce mois dans le classeur.");
+    return;
+  }
+  const ouv = rec.ouverture.valeurs[i], clo = rec.cloture.valeurs[i];
+  const d = rec.delta.valeurs[i];
+  const A = rec.bridge[0].valeurs[i], B = rec.bridge[1].valeurs[i];
+  const C = rec.bridge[2].valeurs[i];
+  const somme = (A || 0) + (B || 0) + (C || 0);
+
+  const hero = document.createElement("div");
+  hero.className = "hero";
+  hero.innerHTML = `<span class="eyebrow">Variation du patrimoine — ${esc(moisSel())}</span>`
+    + `<div class="k ${d >= 0 ? "pos" : "neg"}">${eurS(d)}</div><div class="sub">`
+    + `<span class="ctx">${eur(ouv)} à l'ouverture → <b class="mono">${eur(clo)}</b>`
+    + ` à la clôture</span></div>`
+    + (d != null && Math.abs(somme - d) > 1
+      ? `<div class="sub"><span class="delta down">écart ${eurS(somme - d)}</span>`
+        + `<span class="ctx">l'équation ne boucle pas sur ce mois</span></div>`
+      : `<div class="sub"><span class="delta up">équation bouclée</span>`
+        + `<span class="ctx">marchés + amortissement + liquidités = variation</span></div>`);
+  hote.appendChild(hero);
+
+  let s = section(hote, "Les trois sources de la variation",
+    "Toute variation du patrimoine vient de là : ce que le marché a donné, "
+    + "ce que les prêts ont remboursé, et ce que la trésorerie a déplacé.");
+  let f = figure(s);
+  cascade(f, [
+    {label: "Marchés", valeur: A, type: "delta"},
+    {label: "Amortissement prêts", valeur: B, type: "delta"},
+    {label: "Liquidités", valeur: C, type: "delta"},
+    {label: "Δ patrimoine", valeur: d, type: "end"},
+  ], "Décomposition de la variation du patrimoine en trois composantes");
+  note(f, "Échelle à zéro : les trois barres se lisent en euros gagnés ou déplacés, "
+    + "pas en niveau de patrimoine.");
+
+  s = section(hote, "Variation par actif — " + moisSel(),
+    "Qui a porté le mois, et qui l'a freiné.");
+  barresSignees(s, rec.par_actif.map(l => ({label: l.label, valeur: l.valeurs[i]})));
+
+  s = section(hote, "Indicateurs du mois", "");
+  tuiles(s, rec.insights.map(l => {
+    const v = l.valeurs[i], nm = nom(l.label);
+    const est = /%|part|taux/i.test(nm) && v != null && Math.abs(v) <= 3;
+    return [est ? pc(v) : eur(v), nm.replace(/\s*\([^)]*\)\s*$/, "")];
+  }));
+
+  s = section(hote, "Détail du bridge", "");
+  tableau(s, ["Composante", moisSel(), "Lecture"], rec.bridge.concat([rec.delta])
+    .map((l, k) => ({cl: k === 3 ? "tot" : "", cellules: [
+      esc(l.label.replace(/^[A-C] — /, "")),
+      {v: eurS(l.valeurs[i]), cl: l.valeurs[i] > 0 ? "pos" : l.valeurs[i] < 0 ? "neg" : ""},
+      {v: esc(l.note || ""), texte: true}]})));
+
+  if (rec.lecture) insight(hote, "Lecture rapide", rec.lecture.replace(/^📌\s*/, ""));
+
+  const mv = rec.par_actif.filter(l => l.note && l.valeurs[i] != null)
+    .map(l => `<b>${esc(nom(l.label))}</b> ${eurS(l.valeurs[i])} — ${esc(l.note)}`);
+  if (mv.length) {
+    s = section(hote, "Notes du classeur", "Ce qui est écrit en face de chaque ligne.");
+    const ul = document.createElement("ul");
+    ul.className = "flags";
+    ul.innerHTML = mv.map(t => `<li>${t}</li>`).join("");
+    s.appendChild(ul);
+  }
+}
+
+/* =========================================================================
+   ONGLET 2 — MARCHÉS
+   ========================================================================= */
+function prixDe(p){
+  const e = (COURS[p.source] || {})[p.ticker];
+  return e && typeof e.prix === "number" ? e : null;
+}
+function valeurLive(p){
+  const c = prixDe(p);
+  return c ? p.quantite * c.prix : null;
+}
+/* Valorisation par classe. Une position sans cours retombe sur sa valeur au
+   classeur et marque la classe « incomplète » : afficher un total amputé d'une
+   ligne serait pire qu'un total mixte annoncé comme tel. */
+function totauxLive(){
+  const out = {};
+  const classe = c => out[c] || (out[c] = {live: 0, tracker: 0, complet: true});
+  PF.positions.forEach(p => {
+    const g = classe(p.classe);
+    g.tracker += p.valeur_tracker;
+    const v = valeurLive(p);
+    if (v == null) { g.live += p.valeur_tracker; g.complet = false; }
+    else g.live += v;
+  });
+  (PF.non_suivi || []).forEach(x => {
+    const g = classe(x.classe);
+    g.tracker += x.valeur;
+    g.live += x.valeur;
+  });
+  return out;
+}
+function badgeCours(){
+  if (COURS.etat === "attente") return '<span class="live ko"><i></i>chargement…</span>';
+  if (COURS.etat === "ko") return '<span class="live ko"><i></i>cours indisponibles</span>';
+  // Les cryptos sont toujours de l'instant ; les ETF datent du dernier relevé.
+  // C'est le plus vieux des deux qui fixe ce que vaut le total affiché.
+  const jours = COURS.maj
+    ? (Date.now() - new Date(COURS.maj).getTime()) / 86400000 : 99;
+  if (jours >= 4) return '<span class="live vieux"><i></i>ETF non relevés</span>';
+  if (COURS.direct) return '<span class="live"><i></i>en direct</span>';
+  return '<span class="live"><i></i>cours du jour</span>';
+}
+function ageCours(){
+  if (!COURS.maj) return "relevé indisponible";
+  const d = new Date(COURS.maj);
+  return "relevé du " + d.toLocaleDateString("fr-FR", {day: "numeric", month: "long"})
+    + " à " + d.toLocaleTimeString("fr-FR", {hour: "2-digit", minute: "2-digit"});
+}
+
+function ongletMarches(hote){
+  const t = totauxLive();
+  const live = Object.values(t).reduce((a, g) => a + g.live, 0);
+  const tracker = Object.values(t).reduce((a, g) => a + g.tracker, 0);
+  const d = live - tracker;
+  const dernier = MOIS[MOIS.length - 1];
+
+  const hero = document.createElement("div");
+  hero.className = "hero";
+  hero.innerHTML = `<span class="eyebrow">Valeur des placements ${badgeCours()}</span>`
+    + `<div class="k">${eur(live)}</div><div class="sub">`
+    + `<span class="delta ${d >= 0 ? "up" : "down"}">${eurS(d)}</span>`
+    + `<span class="ctx">depuis la clôture de ${esc(dernier)} `
+    + `(${n1.format(tracker ? d / tracker * 100 : 0)} %)</span></div>`
+    + `<div class="sub"><span class="ctx">PEA et crypto uniquement — le reste du `
+    + `patrimoine ne se cote pas.</span></div>`;
+  hote.appendChild(hero);
+
+  // Plus-value latente du PEA : seules les lignes avec un PRU en ont un.
+  let investi = 0, valoPRU = 0;
+  PF.positions.forEach(p => {
+    const c = prixDe(p);
+    if (!p.pru || !c) return;
+    investi += p.pru * p.quantite;
+    valoPRU += c.prix * p.quantite;
+  });
+  tuiles(hote, [
+    [eur(t.PEA ? t.PEA.live : null), "PEA aujourd'hui"],
+    [eur(t.Crypto ? t.Crypto.live : null), "Crypto aujourd'hui"],
+    [eurS(d), "Écart vs classeur", d >= 0 ? "pos" : "neg"],
+    [investi ? eurS(valoPRU - investi) : "—", "+/− value PEA vs PRU",
+      valoPRU >= investi ? "pos" : "neg"],
+  ]);
+
+  if (COURS.etat === "ko") {
+    const s0 = section(hote, "Cours indisponibles",
+      "Les valeurs ci-dessus sont celles du classeur.");
+    note(s0, "Ni le relevé quotidien ni l'API CoinGecko n'ont répondu. Si la page est "
+      + "ouverte depuis un fichier local, le relevé n'est pas lisible — c'est normal.");
+  }
+
+  // --- tableaux par classe
+  ["PEA", "Crypto"].forEach(cl => {
+    const lignes = PF.positions.filter(p => p.classe === cl);
+    if (!lignes.length) return;
+    const s = section(hote, cl === "PEA" ? "Détail du PEA" : "Détail crypto",
+      cl === "PEA" ? "Cours de clôture Euronext — " + ageCours() + "."
+        : "Cours CoinGecko, rafraîchis à chaque ouverture de la page.");
+    const rangs = lignes
+      .map(p => ({p, c: prixDe(p), v: valeurLive(p)}))
+      .sort((a, b) => (b.v || b.p.valeur_tracker) - (a.v || a.p.valeur_tracker));
+    const corps = rangs.map(({p, c, v}) => {
+      const dp = v == null ? null : v - p.valeur_tracker;
+      const detail = fmtQte(p.quantite)
+        + (cl === "PEA" ? " parts" : "")
+        + (p.pru ? " · PRU " + fmtQte(p.pru) + " €" : "")
+        + (p.derive ? " · quantité reconstituée" : "");
+      return {cellules: [
+        esc(p.label) + `<span class="hint">${esc(detail)}</span>`,
+        {v: c ? cours(c.prix) : "—"},
+        {v: c && c.variation != null
+          ? (c.variation > 0 ? "+" : "") + n2.format(c.variation) + " %" : "—",
+          cl: c && c.variation > 0 ? "pos" : c && c.variation < 0 ? "neg" : ""},
+        {v: eur(v == null ? p.valeur_tracker : v)},
+        {v: dp == null ? "—" : eurS(dp), cl: dp > 0 ? "pos" : dp < 0 ? "neg" : ""},
+      ]};
+    });
+    (PF.non_suivi || []).filter(x => x.classe === cl).forEach(x => {
+      corps.push({cellules: [
+        esc(x.label) + `<span class="hint">${esc(x.raison)}</span>`,
+        "—", "—", {v: eur(x.valeur)}, "—"]});
+    });
+    const g = t[cl];
+    corps.push({cl: "tot", cellules: ["Total " + cl, "", "",
+      {v: eur(g.live)},
+      {v: eurS(g.live - g.tracker),
+        cl: g.live >= g.tracker ? "pos" : "neg"}]});
+    tableau(s, ["Position", "Cours", "Jour", "Valeur", "vs " + dernier], corps);
+    if (g && !g.complet) {
+      note(s, "Une position au moins n'a pas de cours : sa valeur au classeur a été "
+        + "reprise telle quelle dans le total. Si c'est une position récente, son "
+        + "symbole manque sans doute dans tickers.json, que le relevé quotidien lit.");
+    }
+  });
+
+  // --- écarts position par position
+  const ecarts = PF.positions
+    .map(p => ({label: p.label, valeur: valeurLive(p) == null ? null
+      : valeurLive(p) - p.valeur_tracker}))
+    .filter(l => l.valeur != null);
+  if (ecarts.length) {
+    const s = section(hote, "Qui a bougé depuis " + dernier,
+      "Écart entre la valeur d'aujourd'hui et celle inscrite au classeur.");
+    barresSignees(s, ecarts.sort((a, b) => Math.abs(b.valeur) - Math.abs(a.valeur)));
+  }
+
+  const s = section(hote, "D'où viennent ces cours", "");
+  const ul = document.createElement("ul");
+  ul.className = "flags";
+  ul.innerHTML = [
+    "<b>ETF</b> — Yahoo Finance, cours de clôture d'Euronext Paris. Relevés par une "
+    + "tâche automatique chaque soir de semaine, puis déposés dans le dépôt : "
+    + ageCours() + ".",
+    "<b>Crypto</b> — CoinGecko, appelée directement par la page à chaque ouverture. "
+    + (COURS.direct ? "Les cours ci-dessus sont ceux de l'instant."
+      : "L'appel n'a pas abouti : les cours affichés viennent du dernier relevé."),
+    "<b>Quantités</b> — saisies à la main dans <code>data/portefeuille.json</code>, "
+    + "d'après les notes du classeur au " + esc(PF.maj || "—") + ". Un achat non "
+    + "reporté fausserait la valorisation sans que rien ne le signale.",
+  ].map(x => `<li>${x}</li>`).join("");
+  s.appendChild(ul);
+}
+
+/* =========================================================================
+   cours de marché
+   ========================================================================= */
+async function chargerCours(){
+  // 1. Le relevé quotidien commité dans le dépôt. Absent quand la page est
+  //    ouverte depuis un fichier local : ce n'est pas une erreur.
+  try {
+    const r = await fetch("cours.json", {cache: "no-store"});
+    if (r.ok) {
+      const j = await r.json();
+      COURS.yahoo = j.yahoo || {};
+      COURS.coingecko = j.coingecko || {};
+      COURS.maj = j.maj || null;
+    }
+  } catch (e) { /* hors ligne, ou file:// */ }
+
+  // 2. Les cryptos en direct — CoinGecko accepte les appels navigateur.
+  try {
+    const ids = [...new Set(PF.positions.filter(p => p.source === "coingecko")
+      .map(p => p.ticker))];
+    if (ids.length) {
+      const r = await fetch("https://api.coingecko.com/api/v3/simple/price?ids="
+        + ids.join(",") + "&vs_currencies=eur&include_24hr_change=true");
+      if (r.ok) {
+        const j = await r.json();
+        let pris = 0;
+        ids.forEach(i => {
+          if (j[i] && typeof j[i].eur === "number") {
+            COURS.coingecko[i] = {prix: j[i].eur, devise: "EUR",
+              variation: Math.round((j[i].eur_24h_change || 0) * 1000) / 1000};
+            pris++;
+          }
+        });
+        // `maj` reste la date du relevé ETF : l'écraser avec l'heure de l'appel
+        // crypto ferait passer des cours de bourse vieux de six jours pour frais.
+        if (pris) COURS.direct = true;
+      }
+    }
+  } catch (e) { /* CoinGecko injoignable ou quota atteint */ }
+
+  COURS.etat = (Object.keys(COURS.yahoo).length
+    + Object.keys(COURS.coingecko).length) ? "ok" : "ko";
+  rendre();
+}
+
+/* =========================================================================
+   rendu
+   ========================================================================= */
+const RENDUS = {patrimoine: ongletPatrimoine, marches: ongletMarches,
+  flux: ongletFlux, depenses: ongletDepenses, immo: ongletImmo,
+  bridge: ongletBridge};
+let actif = "patrimoine";
+
+function rendre(){
+  const hote = $("#p-" + actif);
+  hote.textContent = "";
+  RENDUS[actif](hote);
+}
+function onglet(nom2){
+  actif = nom2;
+  ONGLETS.forEach(o => {
+    $("#t-" + o).setAttribute("aria-selected", String(o === nom2));
+    $("#p-" + o).hidden = o !== nom2;
+  });
+  rendre();
+  if (location.hash.slice(1) !== nom2) history.replaceState(null, "", "#" + nom2);
+}
+
+/* Le thème est restauré avant tout, pour que l'écran de déverrouillage lui-même
+   s'affiche dans le bon. */
+try {
+  const t = localStorage.getItem("theme");
+  if (t === "dark" || t === "light") document.documentElement.setAttribute("data-theme", t);
+} catch (e) {}
+
+function init(){
+  $("#profil").textContent = (DATA.profil || "").split("|")[0].trim() || "Suivi mensuel";
+  const sl = $("#mois");
+  sl.innerHTML = MOIS.map((m, i) => `<option value="${i}">${esc(m)}</option>`).join("");
+  sl.value = String(sel);
+  sl.addEventListener("change", () => { sel = Number(sl.value); rendre(); });
+
+  ONGLETS.forEach(o => $("#t-" + o).addEventListener("click", () => onglet(o)));
+  $("#theme").addEventListener("click", () => {
+    const sombre = matchMedia("(prefers-color-scheme: dark)").matches;
+    const cur = document.documentElement.getAttribute("data-theme")
+      || (sombre ? "dark" : "light");
+    document.documentElement.setAttribute("data-theme", cur === "dark" ? "light" : "dark");
+    try { localStorage.setItem("theme", cur === "dark" ? "light" : "dark"); } catch (e) {}
+    rendre();
+  });
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", rendre);
+
+  $("#pied").innerHTML = "Généré depuis le classeur de suivi le "
+    + esc(new Date(DATA.genere + "T12:00:00").toLocaleDateString("fr-FR",
+      {day: "numeric", month: "long", year: "numeric"}))
+    + ". " + MOIS.length + " mois suivis, " + DATA.pl.mois.length
+    + " mois de P&L, " + DATA.transactions.length + " écritures catégorisées.<br>"
+    + "Le classeur reste la source de vérité : cette page ne fait que la lire.<br>"
+    + "Les chiffres sont lus dans <b>" + esc(DEPOT.proprietaire + "/" + DEPOT.nom)
+    + "</b>, dépôt privé, et ne transitent par aucun autre serveur. "
+    + "<button type=\"button\" id=\"deconnexion\" class=\"lien\">Se déconnecter</button>";
+  $("#deconnexion").addEventListener("click", () => {
+    try { localStorage.removeItem("jeton"); } catch (e) {}
+    location.reload();
+  });
+
+  const h = location.hash.slice(1);
+  onglet(ONGLETS.includes(h) ? h : "patrimoine");
+}
+
+/* =========================================================================
+   connexion au dépôt privé
+   =========================================================================
+   L'API « contents » de GitHub renvoie le fichier encodé en base64. Elle accepte
+   les appels navigateur, c'est ce qui rend cette page possible sans serveur. */
+class ErreurDepot extends Error {}
+
+async function ghGet(chemin, jeton){
+  const url = "https://api.github.com/repos/" + DEPOT.proprietaire + "/" + DEPOT.nom
+    + "/contents/" + chemin + "?ref=" + encodeURIComponent(DEPOT.branche);
+  let r;
+  try {
+    r = await fetch(url, {headers: {Accept: "application/vnd.github+json",
+      Authorization: "Bearer " + jeton,
+      "X-GitHub-Api-Version": "2022-11-28"}});
+  } catch (e) {
+    throw new ErreurDepot("GitHub est injoignable. Vérifie ta connexion.");
+  }
+  if (r.status === 401) throw new ErreurDepot("Jeton refusé — il est faux, ou expiré.");
+  if (r.status === 403 || r.status === 429) {
+    throw new ErreurDepot("Accès refusé. Le jeton n'a sans doute pas la permission "
+      + "« Contents : Read-only » sur ce dépôt.");
+  }
+  if (r.status === 404) {
+    throw new ErreurDepot("Fichier « " + chemin + " » introuvable. Le jeton ne voit "
+      + "peut-être pas ce dépôt, ou le fichier n'y est pas encore.");
+  }
+  if (!r.ok) throw new ErreurDepot("GitHub a répondu " + r.status + ".");
+
+  const j = await r.json();
+  // Au-delà d'un mégaoctet, l'API ne joint plus le contenu : il faut passer par
+  // l'API « blobs ». On ne devine pas, on le dit.
+  if (j.encoding !== "base64" || !j.content) {
+    throw new ErreurDepot("« " + chemin + " » est trop gros pour être lu ainsi ("
+      + Math.round((j.size || 0) / 1024) + " Ko).");
+  }
+  // atob rend des octets, pas des caractères : sans TextDecoder, tous les accents
+  // du classeur ressortiraient en mojibake.
+  const octets = Uint8Array.from(atob(j.content.replace(/\s/g, "")),
+    c => c.charCodeAt(0));
+  return JSON.parse(new TextDecoder("utf-8").decode(octets));
+}
+
+async function connecter(jeton, retenir){
+  const [tracker, pf] = await Promise.all([
+    ghGet(DEPOT.tracker, jeton),
+    ghGet(DEPOT.portefeuille, jeton),
+  ]);
+  DATA = tracker;
+  PF = pf;
+  MOIS = DATA.patrimoine.mois;
+  sel = MOIS.length - 1;
+  if (retenir) { try { localStorage.setItem("jeton", jeton); } catch (e) {} }
+  $("#verrou").hidden = true;
+  document.querySelector("header").hidden = false;
+  document.querySelector(".wrap").hidden = false;
+  init();
+  chargerCours();
+}
+
+$("#form-verrou").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  const b = $("#ouvrir"), err = $("#err-verrou");
+  const jeton = $("#phrase").value.trim();
+  err.textContent = "";
+  if (!/^(github_pat_|ghp_)/.test(jeton)) {
+    err.textContent = "Ça ne ressemble pas à un jeton GitHub (il commence par "
+      + "« github_pat_ »).";
+    return;
+  }
+  b.disabled = true;
+  b.textContent = "Lecture…";
+  try {
+    await connecter(jeton, $("#retenir").checked);
+  } catch (e) {
+    err.textContent = e instanceof ErreurDepot ? e.message
+      : "Lecture impossible : " + e.message;
+    b.disabled = false;
+    b.textContent = "Se connecter";
+    $("#phrase").select();
+  }
+});
+
+/* Réouverture : si le jeton a été retenu sur cet appareil, on entre direct. S'il
+   ne marche plus — expiré au bout de 90 jours, ou révoqué —, on l'oublie et on
+   redemande, en disant pourquoi. */
+(async function(){
+  let j = null;
+  try { j = localStorage.getItem("jeton"); } catch (e) {}
+  if (j) {
+    try {
+      await connecter(j, false);
+      return;
+    } catch (e) {
+      try { localStorage.removeItem("jeton"); } catch (e2) {}
+      $("#err-verrou").textContent = (e instanceof ErreurDepot ? e.message + " " : "")
+        + "Colle un jeton à jour.";
+    }
+  }
+  $("#phrase").focus();
+})();
+</script>
+</body>
+</html>

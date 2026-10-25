@@ -1,0 +1,9 @@
+# Les données en clair ne quittent jamais le Mac. Le dépôt est public :
+# seul leur chiffré, dans index.html, y est publié.
+data/patrimoine.json
+data/portefeuille.json
+
+essai.html
+.DS_Store
+__pycache__/
+*.pyc

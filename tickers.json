@@ -1,0 +1,12 @@
+{
+ "yahoo": [
+  "WPEA.PA",
+  "PAASI.PA"
+ ],
+ "coingecko": [
+  "bitcoin",
+  "ethereum",
+  "chainlink",
+  "solana"
+ ]
+}
