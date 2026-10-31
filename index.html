@@ -229,6 +229,14 @@ section.viz > .lede{font-size:13.5px;color:var(--ink2);margin:5px 0 0;max-width:
 .sous{font-size:11px;color:var(--ink3);margin-top:5px;font-family:var(--f-mono);
   font-variant-numeric:tabular-nums}
 
+/* ---------- note de veille ---------- */
+.faits{list-style:none;margin:10px 0 0;padding:0;display:flex;
+  flex-direction:column;gap:14px}
+.faits li{padding-left:14px;border-left:2px solid var(--rule-strong);line-height:1.6}
+.faits .src{display:block;font-size:11.5px;color:var(--ink3);margin-top:5px}
+.faits .src a{color:var(--accent)}
+.vide{color:var(--ink3);font-size:13.5px;padding:18px 2px;line-height:1.6}
+
 /* ---------- barres HTML ---------- */
 .bars{display:flex;flex-direction:column;gap:11px;margin-top:14px}
 .bar-row{min-width:0}
@@ -345,6 +353,7 @@ button.lien:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
       <button role="tab" id="t-depenses" aria-selected="false">Dépenses</button>
       <button role="tab" id="t-immo" aria-selected="false">Immo</button>
       <button role="tab" id="t-bridge" aria-selected="false">Bridge</button>
+      <button role="tab" id="t-veille" aria-selected="false">Veille</button>
     </nav>
   </div>
 </header>
@@ -356,6 +365,7 @@ button.lien:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   <div id="p-depenses" role="tabpanel" hidden></div>
   <div id="p-immo" role="tabpanel" hidden></div>
   <div id="p-bridge" role="tabpanel" hidden></div>
+  <div id="p-veille" role="tabpanel" hidden></div>
   <footer id="pied"></footer>
 </div>
 
@@ -375,6 +385,10 @@ const DEPOT = {
 let DATA = null, PF = null, MOIS = [], sel = 0;
 /* Cours de marché : chargés après l'ouverture, la page s'affiche sans eux. */
 let COURS = {yahoo: {}, coingecko: {}, maj: null, direct: false, etat: "attente"};
+/* Le jeton sert encore après la connexion : la note de veille n'est lue qu'à
+   l'ouverture de son onglet, pour ne pas ralentir le chargement. */
+let JETON = null;
+let VEILLE = {etat: "attente", note: null, erreur: null};
 
 const $ = s => document.querySelector(s);
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
@@ -388,7 +402,8 @@ function largeur(hote){
   const w = (hote.clientWidth || 0) - 24;        // les 12 px de marge du cadre
   return Math.max(300, Math.round(w > 0 ? w : 600));
 }
-const ONGLETS = ["patrimoine", "marches", "flux", "depenses", "immo", "bridge"];
+const ONGLETS = ["patrimoine", "marches", "flux", "depenses", "immo", "bridge",
+  "veille"];
 const SLOTS = ["--c1", "--c2", "--c3", "--c4", "--c5", "--c6", "--c7"];
 
 /* ---------- formats ---------- */
@@ -1848,6 +1863,90 @@ function ongletMarches(hote){
 }
 
 /* =========================================================================
+   ONGLET 7 — VEILLE
+   =========================================================================
+   La note est écrite par le skill `veille-marche` dans veille/AAAA-MM.json du
+   dépôt privé. Elle rapporte, elle ne recommande pas : c'est la politique
+   d'investissement qui décide, pas l'actualité. */
+async function chargerVeille(){
+  VEILLE.etat = "charge";
+  try {
+    const liste = await ghListe("veille", JETON);
+    const notes = liste.filter(f => /^\d{4}-\d{2}\.json$/.test(f.name))
+      .map(f => f.name).sort();
+    if (!notes.length) {
+      VEILLE.etat = "vide";
+    } else {
+      VEILLE.note = await ghGet("veille/" + notes[notes.length - 1], JETON);
+      VEILLE.etat = "ok";
+    }
+  } catch (e) {
+    VEILLE.etat = "ko";
+    VEILLE.erreur = e instanceof ErreurDepot ? e.message : e.message;
+  }
+  if (actif === "veille") rendre();
+}
+
+function ongletVeille(hote){
+  if (VEILLE.etat === "attente") { chargerVeille(); }
+  if (VEILLE.etat === "attente" || VEILLE.etat === "charge") {
+    const s = section(hote, "Veille de marché", "");
+    note(s, "Lecture de la note…");
+    return;
+  }
+  if (VEILLE.etat === "vide" || VEILLE.etat === "ko") {
+    const s = section(hote, "Veille de marché", "");
+    const d = document.createElement("p");
+    d.className = "vide";
+    d.textContent = VEILLE.etat === "vide"
+      ? "Aucune note pour l'instant. Elle s'écrit avec le skill « veille marché », "
+        + "et se range dans veille/ du dépôt de données."
+      : "Note illisible : " + VEILLE.erreur;
+    s.appendChild(d);
+    return;
+  }
+
+  const n = VEILLE.note;
+  const hero = document.createElement("div");
+  hero.className = "hero";
+  hero.innerHTML = `<span class="eyebrow">Veille de marché — ${esc(n.libelle)}</span>`
+    + `<p style="margin:10px 0 0;font-size:15px;line-height:1.65;max-width:68ch">`
+    + `${esc(n.resume)}</p>`
+    + `<div class="sub"><span class="ctx">Note de constat, pas de recommandation : `
+    + `le plan d'investissement sort de la politique écrite, pas de l'actualité.`
+    + `</span></div>`;
+  hote.appendChild(hero);
+
+  (n.sections || []).forEach(sec => {
+    const s = section(hote, sec.titre, "");
+    if (sec.chez_toi) insight(s, "Ce que ça touche chez toi", sec.chez_toi);
+    const ul = document.createElement("ul");
+    ul.className = "faits";
+    ul.innerHTML = (sec.points || []).map(p => {
+      const src = p.url
+        ? `<a href="${esc(p.url)}" target="_blank" rel="noopener noreferrer">`
+          + `${esc(p.source)}</a>`
+        : esc(p.source);
+      return `<li>${esc(p.fait)}<span class="src">${src} · ${esc(p.date)}</span></li>`;
+    }).join("");
+    s.appendChild(ul);
+  });
+
+  if ((n.angles_morts || []).length) {
+    const s = section(hote, "Ce que la note ne sait pas",
+      "Chiffres divergents, données introuvables, sources uniques.");
+    const ul = document.createElement("ul");
+    ul.className = "flags";
+    ul.innerHTML = n.angles_morts.map(a => `<li>${esc(a)}</li>`).join("");
+    s.appendChild(ul);
+  }
+
+  const f = section(hote, "", "");
+  note(f, "Note du " + esc(n.genere) + ". Presse financière uniquement — ni forum, "
+    + "ni réseau social, ni lettre d'opinion.");
+}
+
+/* =========================================================================
    cours de marché
    ========================================================================= */
 async function chargerCours(){
@@ -1897,7 +1996,7 @@ async function chargerCours(){
    ========================================================================= */
 const RENDUS = {patrimoine: ongletPatrimoine, marches: ongletMarches,
   flux: ongletFlux, depenses: ongletDepenses, immo: ongletImmo,
-  bridge: ongletBridge};
+  bridge: ongletBridge, veille: ongletVeille};
 let actif = "patrimoine";
 
 function rendre(){
@@ -2025,6 +2124,18 @@ async function ghGet(chemin, jeton){
   return JSON.parse(new TextDecoder("utf-8").decode(octets));
 }
 
+/* Même API, mais sur un dossier : elle renvoie alors un tableau d'entrées. */
+async function ghListe(chemin, jeton){
+  const url = "https://api.github.com/repos/" + DEPOT.proprietaire + "/" + DEPOT.nom
+    + "/contents/" + chemin + "?ref=" + encodeURIComponent(DEPOT.branche);
+  const r = await fetch(url, {headers: {Accept: "application/vnd.github+json",
+    Authorization: "Bearer " + jeton, "X-GitHub-Api-Version": "2022-11-28"}});
+  if (r.status === 404) return [];          // dossier absent : pas encore de note
+  if (!r.ok) throw new ErreurDepot("GitHub a répondu " + r.status + ".");
+  const j = await r.json();
+  return Array.isArray(j) ? j : [];
+}
+
 async function connecter(jeton, retenir){
   const [tracker, pf] = await Promise.all([
     ghGet(DEPOT.tracker, jeton),
@@ -2032,6 +2143,7 @@ async function connecter(jeton, retenir){
   ]);
   DATA = tracker;
   PF = pf;
+  JETON = jeton;
   MOIS = DATA.patrimoine.mois;
   sel = MOIS.length - 1;
   if (retenir) { try { localStorage.setItem("jeton", jeton); } catch (e) {} }
