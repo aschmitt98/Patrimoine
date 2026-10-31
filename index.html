@@ -135,12 +135,13 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:va
 .head-in{max-width:var(--large);margin:0 auto;padding-block:14px 0;
   padding-left:max(16px,env(safe-area-inset-left,0px));
   padding-right:max(16px,env(safe-area-inset-right,0px))}
-.head-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.head-row{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  flex-wrap:wrap}
 .brand{font-family:var(--f-display);font-size:22px;font-weight:700;line-height:1.05}
 .brand small{display:block;font-family:var(--f-body);font-size:10.5px;font-weight:500;
   letter-spacing:.07em;text-transform:uppercase;color:var(--ink3);margin-top:3px}
 .head-tools{display:flex;align-items:center;gap:7px;flex:none}
-select#mois{appearance:none;font-family:var(--f-body);font-size:13px;font-weight:600;
+select#mois,select#periode{appearance:none;font-family:var(--f-body);font-size:13px;font-weight:600;
   color:var(--ink);background:var(--surface);border:1px solid var(--rule-strong);
   border-radius:9px;padding:7px 26px 7px 10px;cursor:pointer;
   background-image:linear-gradient(45deg,transparent 50%,var(--ink3) 50%),
@@ -333,6 +334,7 @@ button.lien:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
       <div class="brand">Patrimoine<small id="profil">Suivi mensuel</small></div>
       <div class="head-tools">
         <select id="mois" aria-label="Mois affiché"></select>
+        <select id="periode" aria-label="Période des graphiques"></select>
         <button class="ghost" id="theme" aria-label="Basculer le thème">◐</button>
       </div>
     </div>
@@ -430,8 +432,16 @@ function emoji(s){
 }
 const nom = s => emoji(s)[1] || String(s || "");
 
-/* ---------- mois courant ---------- */
+/* ---------- mois courant et fenêtre d'affichage ---------- */
 const idx = (liste, m) => liste.indexOf(m);
+
+/* Fenêtre des séries temporelles. 0 = tout l'historique. Le classeur commence en
+   février 2026 : « tout » ne remonte pas plus loin, et les fenêtres courtes ne
+   prennent leur sens qu'à mesure que l'historique s'allonge. */
+let fenetre = 0;
+function depart(liste){
+  return (!fenetre || fenetre >= liste.length) ? 0 : liste.length - fenetre;
+}
 const moisSel = () => MOIS[sel];
 const at = (ligne, liste) => {                  // valeur d'une ligne au mois courant
   if (!ligne) return null;
@@ -675,10 +685,12 @@ function insight(parent, titre, texte){
    ========================================================================= */
 function chartEvolution(hote){
   const W = largeur(hote), H = 300, L = 48, R = 14, T = 16, B = 28;
-  const ms = MOIS, cls = DATA.classes, n = ms.length;
+  const d0 = depart(MOIS);
+  const ms = MOIS.slice(d0), n = ms.length;
+  const cls = DATA.classes.map(c => ({label: c.label, valeurs: c.valeurs.slice(d0)}));
   const tot = ms.map((_, i) => cls.reduce((s, c) => s + (c.valeurs[i] || 0), 0));
   const {ticks, haut} = paliers(Math.max.apply(null, tot));
-  const x = i => L + i * (W - L - R) / (n - 1);
+  const x = i => L + i * (W - L - R) / Math.max(1, n - 1);
   const y = v => H - B - (v / haut) * (H - T - B);
   const s = sv("svg", {viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label":
     "Patrimoine net par classe d'actif, de " + ms[0] + " à " + ms[n - 1]});
@@ -748,11 +760,13 @@ function chartEvolution(hote){
 function chartVariation(hote){
   const W = largeur(hote), H = 200, L = 50, R = 12, T = 24, B = 30;
   const tot = DATA.patrimoine.total;
-  const vals = [], libs = [];
+  let vals = [], libs = [];
   for (let i = 1; i < MOIS.length; i++) {
     vals.push(tot[i] == null || tot[i - 1] == null ? null : tot[i] - tot[i - 1]);
     libs.push(MOIS[i]);
   }
+  const dv = depart(libs);
+  vals = vals.slice(dv); libs = libs.slice(dv);
   const hi = Math.max(0, ...vals.map(v => v || 0));
   const lo = Math.min(0, ...vals.map(v => v || 0));
   const {ticks, haut} = paliers(hi, lo);
@@ -968,8 +982,10 @@ function ongletPatrimoine(hote){
    ========================================================================= */
 function chartFluxGroupes(hote){
   const W = largeur(hote), H = 240, L = 46, R = 10, T = 14, B = 32;
-  const ms = DATA.pl.mois, n = ms.length;
-  const inn = DATA.pl.flux.cash_in.valeurs, out = DATA.pl.flux.cash_out.valeurs;
+  const d0 = depart(DATA.pl.mois);
+  const ms = DATA.pl.mois.slice(d0), n = ms.length;
+  const inn = DATA.pl.flux.cash_in.valeurs.slice(d0);
+  const out = DATA.pl.flux.cash_out.valeurs.slice(d0);
   const {ticks, haut} = paliers(Math.max.apply(null,
     inn.concat(out).map(v => v || 0)));
   const y = v => H - B - (v / haut) * (H - T - B);
@@ -1014,7 +1030,9 @@ function chartFluxGroupes(hote){
 
 function chartSolde(hote){
   const W = largeur(hote), H = 190, L = 46, R = 10, T = 18, B = 32;
-  const ms = DATA.pl.mois, n = ms.length, v = DATA.pl.flux.solde.valeurs;
+  const d0 = depart(DATA.pl.mois);
+  const ms = DATA.pl.mois.slice(d0), n = ms.length;
+  const v = DATA.pl.flux.solde.valeurs.slice(d0);
   const hi = Math.max.apply(null, v.map(x => x || 0));
   const lo = Math.min.apply(null, v.map(x => x || 0));
   const {ticks, haut} = paliers(hi, Math.min(lo, 0));
@@ -1052,10 +1070,12 @@ function chartSolde(hote){
 
 function chartTaux(hote){
   const W = largeur(hote), H = 170, L = 42, R = 12, T = 16, B = 32;
-  const ms = DATA.pl.mois, n = ms.length, v = DATA.pl.flux.taux_epargne.valeurs;
+  const d0 = depart(DATA.pl.mois);
+  const ms = DATA.pl.mois.slice(d0), n = ms.length;
+  const v = DATA.pl.flux.taux_epargne.valeurs.slice(d0);
   const bas = Math.min(0, Math.min.apply(null, v.map(x => x == null ? 0 : x)));
   const haut = Math.max(.8, Math.max.apply(null, v.map(x => x || 0)));
-  const x = i => L + i * (W - L - R) / (n - 1);
+  const x = i => L + i * (W - L - R) / Math.max(1, n - 1);
   const y = t => H - B - ((t - bas) / (haut - bas)) * (H - T - B);
   const s = sv("svg", {viewBox: `0 0 ${W} ${H}`, role: "img",
     "aria-label": "Taux d'épargne brut par mois"});
@@ -1180,7 +1200,9 @@ function ongletFlux(hote){
    ========================================================================= */
 function chartBudget(hote){
   const W = largeur(hote), H = 210, L = 46, R = 12, T = 22, B = 32;
-  const ms = DATA.pl.mois, n = ms.length, v = DATA.pl.total_courant.valeurs;
+  const d0 = depart(DATA.pl.mois);
+  const ms = DATA.pl.mois.slice(d0), n = ms.length;
+  const v = DATA.pl.total_courant.valeurs.slice(d0);
   const bud = DATA.pl.flux.budget.valeurs;
   const cible = bud.filter(x => x != null).pop() || 1600;
   const {ticks, haut} = paliers(Math.max(cible, Math.max.apply(null, v.map(x => x || 0))));
@@ -1219,11 +1241,12 @@ function chartBudget(hote){
 
 function chartConsolide(hote){
   const W = largeur(hote), H = 230, L = 46, R = 12, T = 14, B = 32;
-  const pl = DATA.pl, ms = pl.mois, n = ms.length;
+  const pl = DATA.pl, d0 = depart(pl.mois);
+  const ms = pl.mois.slice(d0), n = ms.length;
   const series = [
-    {label: "Dépenses courantes", v: pl.total_courant.valeurs, c: css("--c1")},
-    {label: "Charges fixes", v: pl.total_fixes.valeurs, c: css("--c2")},
-    {label: "Paiements directs", v: pl.total_directes.valeurs, c: css("--c3")},
+    {label: "Dépenses courantes", v: pl.total_courant.valeurs.slice(d0), c: css("--c1")},
+    {label: "Charges fixes", v: pl.total_fixes.valeurs.slice(d0), c: css("--c2")},
+    {label: "Paiements directs", v: pl.total_directes.valeurs.slice(d0), c: css("--c3")},
   ];
   const tot = ms.map((_, i) => series.reduce((a, s2) => a + (s2.v[i] || 0), 0));
   const {ticks, haut} = paliers(Math.max.apply(null, tot));
@@ -1363,11 +1386,12 @@ function ongletDepenses(hote){
    ========================================================================= */
 function chartEquity(hote){
   const W = largeur(hote), H = 250, L = 48, R = 12, T = 14, B = 32;
-  const im = DATA.immobilier, ms = im.mois, n = ms.length;
-  const valeur = im.financement[0].valeurs;
-  const parental = im.financement[2].valeurs;
-  const bancaire = im.financement[3].valeurs;
-  const eq = im.equity.valeurs;
+  const im = DATA.immobilier, d0 = depart(im.mois);
+  const ms = im.mois.slice(d0), n = ms.length;
+  const valeur = im.financement[0].valeurs.slice(d0);
+  const parental = im.financement[2].valeurs.slice(d0);
+  const bancaire = im.financement[3].valeurs.slice(d0);
+  const eq = im.equity.valeurs.slice(d0);
   const {ticks, haut} = paliers(Math.max.apply(null, valeur.map(v => v || 0)));
   const y = t => H - B - (t / haut) * (H - T - B);
   const pas = (W - L - R) / n, bw = Math.min(40, pas * .66);
@@ -1709,8 +1733,9 @@ function ongletMarches(hote){
 
     const f2 = figure(g1, "c5");
     f2.innerHTML = '<span class="eyebrow">Valeur du PEA, mois après mois</span>';
-    const cpea = DATA.classes.find(c => c.cle === "pea");
-    chartSerie(f2, {valeurs: cpea.valeurs, libelles: MOIS, couleur: css("--c1"),
+    const cpea = DATA.classes.find(c => c.cle === "pea"), dp = depart(MOIS);
+    chartSerie(f2, {valeurs: cpea.valeurs.slice(dp), libelles: MOIS.slice(dp),
+      couleur: css("--c1"),
       live: t.PEA ? t.PEA.live : null, titre: "Valeur du PEA par mois"});
   }
 
@@ -1723,8 +1748,10 @@ function ongletMarches(hote){
     const g2 = grille(s2);
     const f3 = figure(g2, "c7");
     f3.innerHTML = '<span class="eyebrow">Valeur de la poche crypto</span>';
-    chartSerie(f3, {valeurs: ccry.valeurs, libelles: MOIS, couleur: css("--c6"),
-      live: cr, titre: "Valeur de la poche crypto par mois"});
+    const dc = depart(MOIS);
+    chartSerie(f3, {valeurs: ccry.valeurs.slice(dc), libelles: MOIS.slice(dc),
+      couleur: css("--c6"), live: cr,
+      titre: "Valeur de la poche crypto par mois"});
 
     // Deux wallets par jeton : c'est le jeton qui compte, pas où il dort.
     const parJeton = {};
@@ -1902,6 +1929,20 @@ function init(){
   sl.value = String(sel);
   sl.addEventListener("change", () => { sel = Number(sl.value); rendre(); });
 
+  // Les fenêtres plus longues que l'historique n'apparaissent pas dans la liste :
+  // elles n'ajouteraient rien tant que le classeur ne remonte pas plus loin. Elles
+  // apparaîtront d'elles-mêmes au fil des mois.
+  const profondeur = Math.max(MOIS.length, DATA.pl.mois.length);
+  const sp = $("#periode");
+  const choix = [[0, "Tout"]];
+  [3, 6, 12, 24, 36, 60].forEach(k => {
+    if (k < profondeur) choix.push([k, k + " mois"]);
+  });
+  sp.innerHTML = choix.map(([v, t]) =>
+    `<option value="${v}">${esc(t)}</option>`).join("");
+  sp.value = String(fenetre);
+  sp.addEventListener("change", () => { fenetre = Number(sp.value); rendre(); });
+
   ONGLETS.forEach(o => $("#t-" + o).addEventListener("click", () => onglet(o)));
   $("#theme").addEventListener("click", () => {
     const sombre = matchMedia("(prefers-color-scheme: dark)").matches;
@@ -1924,8 +1965,10 @@ function init(){
   $("#pied").innerHTML = "Généré depuis le classeur de suivi le "
     + esc(new Date(DATA.genere + "T12:00:00").toLocaleDateString("fr-FR",
       {day: "numeric", month: "long", year: "numeric"}))
-    + ". " + MOIS.length + " mois suivis, " + DATA.pl.mois.length
-    + " mois de P&L, " + DATA.transactions.length + " écritures catégorisées.<br>"
+    + ". Historique disponible : " + esc(DATA.pl.mois[0]) + " → "
+    + esc(MOIS[MOIS.length - 1]) + " — " + MOIS.length + " mois de patrimoine, "
+    + DATA.pl.mois.length + " mois de dépenses, " + DATA.transactions.length
+    + " écritures catégorisées.<br>"
     + "Le classeur reste la source de vérité : cette page ne fait que la lire.<br>"
     + "Les chiffres sont lus dans <b>" + esc(DEPOT.proprietaire + "/" + DEPOT.nom)
     + "</b>, dépôt privé, et ne transitent par aucun autre serveur. "
