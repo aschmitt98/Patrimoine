@@ -40,6 +40,7 @@
   --in:#1baf7a; --out:#eb6834;              /* entrées / sorties de trésorerie */
   --good:#0ca30c; --warn:#fab219; --crit:#d03b3b;
   --shadow:0 1px 2px rgba(20,22,28,.06),0 4px 14px rgba(20,22,28,.05);
+  --large:1180px;
   --f-display:"Barlow Condensed","Arial Narrow",sans-serif;
   --f-body:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
   --f-mono:"IBM Plex Mono","SFMono-Regular",Menlo,monospace;
@@ -109,9 +110,19 @@ button.primary:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
   border-top:1px solid var(--rule);padding-top:13px}
 .lock-note b{color:var(--ink2);font-weight:600}
 .lock-note a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:2px}
-.wrap{max-width:640px;margin:0 auto;padding-block:0 72px;
+.wrap{max-width:var(--large);margin:0 auto;padding-block:0 72px;
   padding-left:max(16px,env(safe-area-inset-left,0px));
   padding-right:max(16px,env(safe-area-inset-right,0px))}
+/* Grille de douze colonnes : une figure occupe 4, 6, 8 ou 12 colonnes sur grand
+   écran, et la largeur entière dès qu'on descend sous 860 px. */
+.grille{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));
+  gap:16px;margin-top:14px;align-items:start}
+.grille > *{min-width:0;margin-top:0}
+.c4{grid-column:span 4} .c5{grid-column:span 5} .c6{grid-column:span 6}
+.c7{grid-column:span 7} .c8{grid-column:span 8} .c12{grid-column:span 12}
+@media (max-width:860px){
+  .c4,.c5,.c6,.c7,.c8{grid-column:span 12}
+}
 h1,h2,h3{margin:0;font-family:var(--f-display);font-weight:600;text-wrap:balance;
   letter-spacing:.01em}
 .mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
@@ -121,7 +132,7 @@ h1,h2,h3{margin:0;font-family:var(--f-display);font-weight:600;text-wrap:balance
 /* ---------- en-tête ---------- */
 header{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--ground);
   border-bottom:1px solid var(--rule)}
-.head-in{max-width:640px;margin:0 auto;padding-block:14px 0;
+.head-in{max-width:var(--large);margin:0 auto;padding-block:14px 0;
   padding-left:max(16px,env(safe-area-inset-left,0px));
   padding-right:max(16px,env(safe-area-inset-right,0px))}
 .head-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
@@ -171,9 +182,14 @@ section.viz > .lede{font-size:13.5px;color:var(--ink2);margin:5px 0 0;max-width:
 
 /* ---------- héros ---------- */
 .hero{margin-top:20px;background:var(--surface);border:1px solid var(--rule);
-  border-radius:16px;padding:20px 18px;box-shadow:var(--shadow)}
-.hero .k{font-family:var(--f-mono);font-size:40px;font-weight:600;line-height:1;
-  font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  border-radius:16px;padding:22px 20px;box-shadow:var(--shadow)}
+.hero .k{font-family:var(--f-mono);font-size:clamp(34px,5vw,52px);font-weight:600;
+  line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+/* Héros à deux chiffres de tête, côte à côte sur grand écran. */
+.hero.duo{display:grid;grid-template-columns:1fr 1fr;gap:20px 28px}
+.hero.duo > div{min-width:0}
+.hero.duo .k{font-size:clamp(30px,4vw,44px)}
+@media (max-width:620px){.hero.duo{grid-template-columns:1fr}}
 .hero .sub{display:flex;flex-wrap:wrap;align-items:baseline;gap:9px;margin-top:10px}
 .delta{font-family:var(--f-mono);font-size:14px;font-weight:600;padding:3px 8px;
   border-radius:999px;font-variant-numeric:tabular-nums}
@@ -189,13 +205,28 @@ section.viz > .lede{font-size:13.5px;color:var(--ink2);margin:5px 0 0;max-width:
 .live.ko{color:var(--ink3);background:var(--raised)}
 
 /* ---------- tuiles ---------- */
-.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:8px;
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(134px,1fr));gap:10px;
   margin-top:14px}
 .tile{background:var(--surface);border:1px solid var(--rule);border-radius:12px;
-  padding:12px 11px;min-width:0}
-.tile .k{font-family:var(--f-mono);font-size:18px;font-weight:600;line-height:1.1;
+  padding:14px 13px;min-width:0}
+.tile .k{font-family:var(--f-mono);font-size:20px;font-weight:600;line-height:1.1;
   font-variant-numeric:tabular-nums;white-space:nowrap}
-.tile .l{font-size:10.5px;color:var(--ink3);margin-top:5px;line-height:1.35}
+.tile .l{font-size:11px;color:var(--ink3);margin-top:6px;line-height:1.35}
+/* Une tuile peut porter une bande de couleur à gauche quand elle marque un état. */
+.tile.marque{border-left:3px solid var(--accent);padding-left:12px}
+.tile.marque.bon{border-left-color:var(--in)}
+.tile.marque.mauvais{border-left-color:var(--out)}
+
+/* ---------- barre de composition, cent pour cent ---------- */
+.empilee{display:flex;gap:2px;height:16px;border-radius:5px;overflow:hidden;
+  margin:4px 0 14px}
+.empilee span{display:block;height:100%}
+/* ---------- barre en deux segments : capital investi puis plus-value ---------- */
+.track2{display:flex;gap:2px;height:13px;border-radius:5px;background:var(--raised);
+  overflow:hidden}
+.track2 .seg{display:block;height:100%}
+.sous{font-size:11px;color:var(--ink3);margin-top:5px;font-family:var(--f-mono);
+  font-variant-numeric:tabular-nums}
 
 /* ---------- barres HTML ---------- */
 .bars{display:flex;flex-direction:column;gap:11px;margin-top:14px}
@@ -346,6 +377,15 @@ let COURS = {yahoo: {}, coingecko: {}, maj: null, direct: false, etat: "attente"
 const $ = s => document.querySelector(s);
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const SVGNS = "http://www.w3.org/2000/svg";
+
+/* Largeur de dessin = largeur réelle du conteneur. Avec un viewBox fixe, le même
+   graphique voit son texte doubler en pleine largeur et devenir illisible dans une
+   colonne étroite : ce qui change alors, c'est l'échelle du SVG, pas la taille du
+   texte. En dessinant à la bonne largeur, 10 px restent 10 px partout. */
+function largeur(hote){
+  const w = (hote.clientWidth || 0) - 24;        // les 12 px de marge du cadre
+  return Math.max(300, Math.round(w > 0 ? w : 600));
+}
 const ONGLETS = ["patrimoine", "marches", "flux", "depenses", "immo", "bridge"];
 const SLOTS = ["--c1", "--c2", "--c3", "--c4", "--c5", "--c6", "--c7"];
 
@@ -456,11 +496,70 @@ function section(hote, titre, lede){
   hote.appendChild(s);
   return s;
 }
-function figure(parent){
+function figure(parent, colonnes){
   const f = document.createElement("div");
-  f.className = "figure";
+  f.className = "figure" + (colonnes ? " " + colonnes : "");
   parent.appendChild(f);
   return f;
+}
+/* Conteneur de douze colonnes : les figures qu'on y range portent c4, c6, c8… */
+function grille(parent){
+  const g = document.createElement("div");
+  g.className = "grille";
+  parent.appendChild(g);
+  return g;
+}
+function bloc(parent, colonnes, titre, lede){
+  const d = document.createElement("div");
+  d.className = colonnes || "";
+  d.innerHTML = (titre ? `<h2 style="font-size:17px">${esc(titre)}</h2>` : "")
+    + (lede ? `<p class="lede" style="margin-bottom:10px">${esc(lede)}</p>` : "");
+  parent.appendChild(d);
+  return d;
+}
+/* Barre de composition en cent pour cent : la vue d'ensemble, que la liste
+   classée juste en dessous vient détailler. */
+function barreEmpilee(parent, items){
+  const total = items.reduce((a, b) => a + (b.valeur || 0), 0) || 1;
+  const d = document.createElement("div");
+  d.className = "empilee";
+  d.setAttribute("role", "img");
+  d.setAttribute("aria-label", "Répartition : " + items
+    .map(i => i.label + " " + n1.format((i.valeur || 0) / total * 100) + " %").join(", "));
+  d.innerHTML = items.map(i =>
+    `<span style="width:${(i.valeur || 0) / total * 100}%;background:${i.couleur}"
+       title="${esc(i.label)} — ${esc(eur(i.valeur))}"></span>`).join("");
+  parent.appendChild(d);
+  return d;
+}
+/* Capital investi puis plus-value, bout à bout. La longueur totale est la valeur
+   d'aujourd'hui quand on gagne, le capital investi quand on perd : dans les deux
+   cas la barre se lit depuis zéro, et l'écart au PRU se voit. */
+function barresInvesti(parent, lignes){
+  const max = Math.max.apply(null, lignes.map(l =>
+    Math.max(l.investi || 0, l.valeur || 0))) || 1;
+  const d = document.createElement("div");
+  d.className = "bars";
+  d.innerHTML = lignes.map(l => {
+    const pv = (l.valeur || 0) - (l.investi || 0);
+    const gain = pv >= 0;
+    const base = gain ? l.investi : l.valeur;
+    const ecart = Math.abs(pv);
+    const pct = l.investi ? pv / l.investi * 100 : 0;
+    return `<div class="bar-row"><div class="bar-top">`
+      + `<span class="nm">${esc(nom(l.label))}</span>`
+      + `<span class="vl">${esc(eur(l.valeur))}`
+      + ` <span class="flag ${gain ? "ok" : "over"}">${esc(eurS(pv))} `
+      + `(${pct > 0 ? "+" : ""}${n1.format(pct)} %)</span></span></div>`
+      + `<div class="track2">`
+      + `<span class="seg" style="width:${base / max * 100}%;background:${css("--c1")}"></span>`
+      + `<span class="seg" style="width:${ecart / max * 100}%;background:${
+          gain ? css("--in") : css("--out")}"></span>`
+      + `</div>`
+      + `<div class="sous">investi ${esc(eur(l.investi))}</div></div>`;
+  }).join("");
+  parent.appendChild(d);
+  return d;
 }
 function legende(parent, items, carre){
   const l = document.createElement("div");
@@ -575,7 +674,7 @@ function insight(parent, titre, texte){
    ONGLET 1 — PATRIMOINE
    ========================================================================= */
 function chartEvolution(hote){
-  const W = 600, H = 300, L = 48, R = 14, T = 16, B = 28;
+  const W = largeur(hote), H = 300, L = 48, R = 14, T = 16, B = 28;
   const ms = MOIS, cls = DATA.classes, n = ms.length;
   const tot = ms.map((_, i) => cls.reduce((s, c) => s + (c.valeurs[i] || 0), 0));
   const {ticks, haut} = paliers(Math.max.apply(null, tot));
@@ -644,6 +743,100 @@ function chartEvolution(hote){
   s.addEventListener("pointerleave", () => { tip.hide(); rail.setAttribute("opacity", 0); });
 }
 
+/* Variation du patrimoine mois par mois. L'aire empilée montre le niveau ; à
+   l'échelle de deux cent mille euros, le mouvement du mois y est invisible. */
+function chartVariation(hote){
+  const W = largeur(hote), H = 200, L = 50, R = 12, T = 24, B = 30;
+  const tot = DATA.patrimoine.total;
+  const vals = [], libs = [];
+  for (let i = 1; i < MOIS.length; i++) {
+    vals.push(tot[i] == null || tot[i - 1] == null ? null : tot[i] - tot[i - 1]);
+    libs.push(MOIS[i]);
+  }
+  const hi = Math.max(0, ...vals.map(v => v || 0));
+  const lo = Math.min(0, ...vals.map(v => v || 0));
+  const {ticks, haut} = paliers(hi, lo);
+  const bas = Math.min(lo, 0), etendue = (haut - bas) || 1;
+  const y = v => H - B - ((v - bas) / etendue) * (H - T - B);
+  const pas = (W - L - R) / vals.length, bw = Math.min(44, pas * .58);
+  const s = sv("svg", {viewBox: `0 0 ${W} ${H}`, role: "img",
+    "aria-label": "Variation du patrimoine net d'un mois sur l'autre"});
+  ticks.concat(bas).forEach(t => {
+    s.appendChild(sv("line", {x1: L, x2: W - R, y1: y(t), y2: y(t),
+      stroke: Math.abs(t) < .001 ? css("--rule-strong") : css("--rule"),
+      "stroke-width": 1}));
+    s.appendChild(txt(L - 8, y(t) + 3.5, kE(t), {"text-anchor": "end", "font-size": 9.5}));
+  });
+  vals.forEach((v, i) => {
+    const cx = L + pas * (i + .5);
+    if (v != null) {
+      s.appendChild(sv("path", {d: barV(cx - bw / 2, bw, y(0), y(v), 4),
+        fill: v >= 0 ? css("--in") : css("--out")}));
+      s.appendChild(txt(cx, v >= 0 ? y(v) - 7 : y(v) + 14, eurS(v), {
+        "text-anchor": "middle", "font-size": 10, "font-weight": 600,
+        fill: v >= 0 ? css("--in") : css("--out")}));
+    }
+    s.appendChild(txt(cx, H - B + 15, libs[i].replace(" 2026", "").replace(".", ""),
+      {"text-anchor": "middle", "font-size": 9.5}));
+  });
+  s.appendChild(sv("line", {x1: L, x2: W - R, y1: y(0), y2: y(0),
+    stroke: css("--rule-strong"), "stroke-width": 1.25}));
+  hote.appendChild(s);
+}
+
+/* Une série, en aire. Le point « aujourd'hui » se rattache en pointillé : il ne
+   vient pas du classeur mais des cours du jour, et mélanger les deux traits
+   laisserait croire que le classeur a été mis à jour. */
+function chartSerie(hote, o){
+  const W = largeur(hote), H = 215, L = 54, R = 16, T = 20, B = 28;
+  const vals = o.valeurs, n = vals.length;
+  const aussi = o.live != null ? vals.concat([o.live]) : vals;
+  const {ticks, haut} = paliers(Math.max.apply(null, aussi.filter(v => v != null)));
+  const nx = n + (o.live != null ? 1 : 0);
+  const x = i => L + i * (W - L - R) / Math.max(1, nx - 1);
+  const y = v => H - B - (v / haut) * (H - T - B);
+  const s = sv("svg", {viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": o.titre});
+  ticks.forEach(t => {
+    s.appendChild(sv("line", {x1: L, x2: W - R, y1: y(t), y2: y(t),
+      stroke: css("--rule"), "stroke-width": 1}));
+    s.appendChild(txt(L - 8, y(t) + 3.5, kE(t), {"text-anchor": "end", "font-size": 9.5}));
+  });
+
+  let d = "", aire = "";
+  vals.forEach((v, i) => {
+    if (v == null) return;
+    d += (d ? "L" : "M") + x(i).toFixed(1) + " " + y(v).toFixed(1) + " ";
+  });
+  aire = d + "L" + x(n - 1).toFixed(1) + " " + y(0) + " L" + x(0).toFixed(1)
+    + " " + y(0) + " Z";
+  s.appendChild(sv("path", {d: aire, fill: o.couleur, opacity: .16}));
+  s.appendChild(sv("path", {d, fill: "none", stroke: o.couleur, "stroke-width": 2,
+    "stroke-linejoin": "round", "stroke-linecap": "round"}));
+  vals.forEach((v, i) => {
+    if (v == null) return;
+    s.appendChild(sv("circle", {cx: x(i), cy: y(v), r: 3.2, fill: css("--surface"),
+      stroke: o.couleur, "stroke-width": 2}));
+  });
+
+  if (o.live != null) {
+    s.appendChild(sv("path", {d: "M" + x(n - 1) + " " + y(vals[n - 1])
+      + " L" + x(nx - 1) + " " + y(o.live), fill: "none", stroke: o.couleur,
+      "stroke-width": 2, "stroke-dasharray": "3 3"}));
+    s.appendChild(sv("circle", {cx: x(nx - 1), cy: y(o.live), r: 4.5,
+      fill: o.couleur, stroke: css("--surface"), "stroke-width": 2}));
+    s.appendChild(txt(x(nx - 1), y(o.live) - 10, eur(o.live), {"text-anchor": "end",
+      "font-size": 10.5, "font-weight": 600, fill: o.couleur}));
+  }
+  o.libelles.forEach((m, i) => s.appendChild(txt(x(i), H - B + 15,
+    m.replace(" 2026", "").replace(".", ""),
+    {"text-anchor": "middle", "font-size": 9.5})));
+  if (o.live != null) {
+    s.appendChild(txt(x(nx - 1), H - B + 15, "auj.", {"text-anchor": "middle",
+      "font-size": 9.5, fill: o.couleur, "font-weight": 600}));
+  }
+  hote.appendChild(s);
+}
+
 function ongletPatrimoine(hote){
   const ms = MOIS, i = sel, pat = DATA.patrimoine, rec = DATA.reconciliation;
   const tot = pat.total[i], prec = i ? pat.total[i - 1] : null;
@@ -672,9 +865,17 @@ function ongletPatrimoine(hote){
   }
   hote.appendChild(hero);
 
+  // Brut, dettes, net. Le patrimoine net seul ne dit pas qu'il y a un appartement
+  // d'un côté et ce qu'il en reste à rembourser de l'autre.
+  const im = DATA.immobilier, ii = idx(im.mois, ms[i]);
+  const dettes = ii < 0 ? null : im.financement.slice(2)
+    .reduce((a, l) => a + Math.abs(l.valeurs[ii] || 0), 0);
   const march = at(rec.bridge[0], rec.mois), amort = at(rec.bridge[1], rec.mois);
   const liq = at(rec.bridge[2], rec.mois);
   tuiles(hote, [
+    [eur(dettes == null ? null : tot + dettes), "Actifs bruts"],
+    [dettes == null ? "—" : "−" + eur(dettes), "Dettes restantes", "neg"],
+    [eur(tot), "Patrimoine net"],
     [eurS(march), "Gains marchés", march >= 0 ? "pos" : "neg"],
     [eurS(amort), "Amortissement prêts", "pos"],
     [eurS(liq), "Δ liquidités", liq >= 0 ? "pos" : "neg"],
@@ -682,8 +883,9 @@ function ongletPatrimoine(hote){
   ]);
 
   let s = section(hote, "Évolution par classe d'actif",
-    "Le sommet de l'aire est le patrimoine net. Touche le graphique pour lire un mois.");
-  const f = figure(s);
+    "Le sommet de l'aire est le patrimoine net. Survole le graphique pour lire un mois.");
+  const g = grille(s);
+  const f = figure(g, "c8");
   chartEvolution(f);
   legende(f, DATA.classes.map((c, k) => [css(SLOTS[k % SLOTS.length]), c.label]), true);
   // Les noms d'établissements viennent du chiffré, jamais du gabarit : ce fichier
@@ -696,14 +898,22 @@ function ongletPatrimoine(hote){
     + "Le compte courant n'est suivi comme actif que depuis septembre 2026 : avant, "
     + "il était hors patrimoine.");
 
-  // --- composition du mois
-  s = section(hote, "Composition — " + ms[i],
-    "Part de chaque classe dans le patrimoine net.");
+  // --- composition du mois, à côté de la courbe
   const cls = DATA.classes.map((c, k) => ({
     label: c.label, valeur: c.valeurs[i], couleur: css(SLOTS[k % SLOTS.length]),
     secondaire: c.valeurs[i] == null ? "" : n1.format(c.valeurs[i] / tot * 100) + " %",
   })).sort((a, b) => (b.valeur || 0) - (a.valeur || 0));
-  barresH(s, cls, {max: Math.max.apply(null, cls.map(c => c.valeur || 0))});
+  const fc = figure(g, "c4");
+  fc.innerHTML = `<span class="eyebrow">Composition — ${esc(ms[i])}</span>`;
+  barreEmpilee(fc, cls);
+  barresH(fc, cls, {max: Math.max.apply(null, cls.map(c => c.valeur || 0))});
+
+  // --- ce que le mois a changé
+  const fv = figure(g, "c12");
+  fv.innerHTML = '<span class="eyebrow">Variation d\'un mois sur l\'autre</span>';
+  chartVariation(fv);
+  note(fv, "Juillet 2026 est le mois du Brésil ; septembre le meilleur mois de "
+    + "l'année. Ce sont ces écarts que la courbe du dessus aplatit.");
 
   // --- détail ligne à ligne
   s = section(hote, "Détail par ligne",
@@ -757,7 +967,7 @@ function ongletPatrimoine(hote){
    ONGLET 2 — FLUX
    ========================================================================= */
 function chartFluxGroupes(hote){
-  const W = 600, H = 240, L = 46, R = 10, T = 14, B = 32;
+  const W = largeur(hote), H = 240, L = 46, R = 10, T = 14, B = 32;
   const ms = DATA.pl.mois, n = ms.length;
   const inn = DATA.pl.flux.cash_in.valeurs, out = DATA.pl.flux.cash_out.valeurs;
   const {ticks, haut} = paliers(Math.max.apply(null,
@@ -803,7 +1013,7 @@ function chartFluxGroupes(hote){
 }
 
 function chartSolde(hote){
-  const W = 600, H = 190, L = 46, R = 10, T = 18, B = 32;
+  const W = largeur(hote), H = 190, L = 46, R = 10, T = 18, B = 32;
   const ms = DATA.pl.mois, n = ms.length, v = DATA.pl.flux.solde.valeurs;
   const hi = Math.max.apply(null, v.map(x => x || 0));
   const lo = Math.min.apply(null, v.map(x => x || 0));
@@ -841,7 +1051,7 @@ function chartSolde(hote){
 }
 
 function chartTaux(hote){
-  const W = 600, H = 170, L = 42, R = 12, T = 16, B = 32;
+  const W = largeur(hote), H = 170, L = 42, R = 12, T = 16, B = 32;
   const ms = DATA.pl.mois, n = ms.length, v = DATA.pl.flux.taux_epargne.valeurs;
   const bas = Math.min(0, Math.min.apply(null, v.map(x => x == null ? 0 : x)));
   const haut = Math.max(.8, Math.max.apply(null, v.map(x => x || 0)));
@@ -879,24 +1089,50 @@ function ongletFlux(hote){
   const out = i < 0 ? null : pl.flux.cash_out.valeurs[i];
   const solde = i < 0 ? null : pl.flux.solde.valeurs[i];
 
+  const taux = i < 0 ? null : pl.flux.taux_epargne.valeurs[i];
+  const tousTaux = pl.flux.taux_epargne.valeurs.filter(v => v != null);
+  const moyen = tousTaux.length
+    ? tousTaux.reduce((a, b) => a + b, 0) / tousTaux.length : null;
+  const cumul = pl.flux.solde.valeurs.reduce((a, v) => a + (v || 0), 0);
+
   const hero = document.createElement("div");
-  hero.className = "hero";
-  hero.innerHTML = `<span class="eyebrow">Solde net — ${esc(moisSel())}</span>`
+  hero.className = "hero duo";
+  hero.innerHTML =
+    `<div><span class="eyebrow">Solde net — ${esc(moisSel())}</span>`
     + `<div class="k ${solde >= 0 ? "pos" : "neg"}">${eurS(solde)}</div>`
-    + `<div class="sub"><span class="ctx">${eur(inn)} encaissés · ${eur(out)} dépensés`
-    + ` · taux d'épargne ${pc(i < 0 ? null : pl.flux.taux_epargne.valeurs[i])}</span></div>`;
+    + `<div class="sub"><span class="ctx">${eur(inn)} encaissés, ${eur(out)} dépensés`
+    + `</span></div></div>`
+    + `<div><span class="eyebrow">Taux d'épargne</span>`
+    + `<div class="k">${pc(taux)}</div><div class="sub">`
+    + (moyen == null || taux == null ? ""
+        : `<span class="delta ${taux >= moyen ? "up" : "down"}">`
+          + `${taux > moyen ? "+" : ""}${n1.format((taux - moyen) * 100)} pts</span>`)
+    + `<span class="ctx">vs ${pc(moyen)} de moyenne sur ${tousTaux.length} mois`
+    + `</span></div></div>`;
   hote.appendChild(hero);
 
-  let s = section(hote, "Entrées et sorties",
-    "Tout ce qui passe par le compte courant : salaire, loyers, notes de frais d'un côté ; "
-    + "dépenses courantes, charges fixes et paiements directs de l'autre.");
-  let f = figure(s);
+  tuiles(hote, [
+    [eur(inn), "Encaissé ce mois"],
+    [eur(out), "Dépensé ce mois"],
+    [eurS(cumul), "Mis de côté depuis " + pm[0], cumul >= 0 ? "pos" : "neg"],
+    [pc(moyen), "Taux d'épargne moyen"],
+  ]);
+
+  let s = section(hote, "Entrées, sorties, et ce qui reste",
+    "Tout ce qui passe par le compte courant : salaire, loyers et notes de frais d'un "
+    + "côté ; dépenses courantes, charges fixes et paiements directs de l'autre.");
+  const g = grille(s);
+  let f = figure(g, "c7");
   chartFluxGroupes(f);
   legende(f, [[css("--in"), "Entrées"], [css("--out"), "Sorties"]], true);
 
-  s = section(hote, "Solde net mensuel",
-    "Ce qui reste sur le compte courant avant d'investir.");
-  f = figure(s);
+  const ft = figure(g, "c5");
+  ft.innerHTML = '<span class="eyebrow">Taux d\'épargne brut</span>';
+  chartTaux(ft);
+  note(ft, "Part du cash encaissé qui n'a pas été dépensée dans le mois.");
+
+  f = figure(g, "c12");
+  f.innerHTML = '<span class="eyebrow">Solde net mensuel</span>';
   chartSolde(f);
   // Le classeur porte deux soldes pour un même mois : celui du P&L et celui de la
   // réconciliation, calculés sur des totaux de dépenses différents. Quand ils
@@ -908,10 +1144,6 @@ function ongletFlux(hote){
       + " au P&L et " + eurS(sRec) + " à la réconciliation. L'écart vient du total "
       + "de dépenses retenu — c'est celui du P&L qui est tracé ici.");
   }
-
-  s = section(hote, "Taux d'épargne brut", "Solde net rapporté aux encaissements du mois.");
-  f = figure(s);
-  chartTaux(f);
 
   // --- composition des encaissements
   s = section(hote, "D'où vient l'argent — " + moisSel(),
@@ -947,7 +1179,7 @@ function ongletFlux(hote){
    ONGLET 3 — DÉPENSES
    ========================================================================= */
 function chartBudget(hote){
-  const W = 600, H = 210, L = 46, R = 12, T = 22, B = 32;
+  const W = largeur(hote), H = 210, L = 46, R = 12, T = 22, B = 32;
   const ms = DATA.pl.mois, n = ms.length, v = DATA.pl.total_courant.valeurs;
   const bud = DATA.pl.flux.budget.valeurs;
   const cible = bud.filter(x => x != null).pop() || 1600;
@@ -986,7 +1218,7 @@ function chartBudget(hote){
 }
 
 function chartConsolide(hote){
-  const W = 600, H = 230, L = 46, R = 12, T = 14, B = 32;
+  const W = largeur(hote), H = 230, L = 46, R = 12, T = 14, B = 32;
   const pl = DATA.pl, ms = pl.mois, n = ms.length;
   const series = [
     {label: "Dépenses courantes", v: pl.total_courant.valeurs, c: css("--c1")},
@@ -1130,7 +1362,7 @@ function ongletDepenses(hote){
    ONGLET 4 — IMMOBILIER
    ========================================================================= */
 function chartEquity(hote){
-  const W = 600, H = 250, L = 48, R = 12, T = 14, B = 32;
+  const W = largeur(hote), H = 250, L = 48, R = 12, T = 14, B = 32;
   const im = DATA.immobilier, ms = im.mois, n = ms.length;
   const valeur = im.financement[0].valeurs;
   const parental = im.financement[2].valeurs;
@@ -1180,7 +1412,7 @@ function chartEquity(hote){
 
 /* Cascade : une barre de départ, des deltas, une barre d'arrivée. Base à zéro. */
 function cascade(hote, etapes, label){
-  const W = 600, H = 240, L = 48, R = 12, T = 26, B = 46;
+  const W = largeur(hote), H = 240, L = 48, R = 12, T = 26, B = 46;
   let cur = 0;
   const geom = etapes.map(e => {
     if (e.type === "start" || e.type === "end") {
@@ -1419,31 +1651,37 @@ function ongletMarches(hote){
   const d = live - tracker;
   const dernier = MOIS[MOIS.length - 1];
 
+  // Plus-value latente du PEA : seules les lignes avec un PRU en ont une.
+  const avecPRU = PF.positions.filter(p => p.pru && prixDe(p));
+  const investi = avecPRU.reduce((a, p) => a + p.pru * p.quantite, 0);
+  const valoPRU = avecPRU.reduce((a, p) => a + prixDe(p).prix * p.quantite, 0);
+  const pv = valoPRU - investi;
+
   const hero = document.createElement("div");
-  hero.className = "hero";
-  hero.innerHTML = `<span class="eyebrow">Valeur des placements ${badgeCours()}</span>`
+  hero.className = "hero duo";
+  hero.innerHTML =
+    `<div><span class="eyebrow">Valeur des placements ${badgeCours()}</span>`
     + `<div class="k">${eur(live)}</div><div class="sub">`
     + `<span class="delta ${d >= 0 ? "up" : "down"}">${eurS(d)}</span>`
-    + `<span class="ctx">depuis la clôture de ${esc(dernier)} `
-    + `(${n1.format(tracker ? d / tracker * 100 : 0)} %)</span></div>`
-    + `<div class="sub"><span class="ctx">PEA et crypto uniquement — le reste du `
-    + `patrimoine ne se cote pas.</span></div>`;
+    + `<span class="ctx">depuis la clôture de ${esc(dernier)}</span></div>`
+    + `<div class="sub"><span class="ctx">PEA et crypto — le reste du patrimoine `
+    + `ne se cote pas.</span></div></div>`
+    + `<div><span class="eyebrow">Plus-value latente du PEA</span>`
+    + `<div class="k ${pv >= 0 ? "pos" : "neg"}">${investi ? eurS(pv) : "—"}</div>`
+    + `<div class="sub">`
+    + (investi ? `<span class="delta ${pv >= 0 ? "up" : "down"}">`
+        + `${pv > 0 ? "+" : ""}${n1.format(pv / investi * 100)} %</span>` : "")
+    + `<span class="ctx">sur ${eur(investi)} investis</span></div>`
+    + `<div class="sub"><span class="ctx">Écart entre le prix de revient et le cours `
+    + `du jour. Rien n'est encaissé tant que rien n'est vendu.</span></div></div>`;
   hote.appendChild(hero);
 
-  // Plus-value latente du PEA : seules les lignes avec un PRU en ont un.
-  let investi = 0, valoPRU = 0;
-  PF.positions.forEach(p => {
-    const c = prixDe(p);
-    if (!p.pru || !c) return;
-    investi += p.pru * p.quantite;
-    valoPRU += c.prix * p.quantite;
-  });
+  const cr = t.Crypto ? t.Crypto.live : null;
   tuiles(hote, [
     [eur(t.PEA ? t.PEA.live : null), "PEA aujourd'hui"],
-    [eur(t.Crypto ? t.Crypto.live : null), "Crypto aujourd'hui"],
+    [eur(cr), "Crypto aujourd'hui"],
     [eurS(d), "Écart vs classeur", d >= 0 ? "pos" : "neg"],
-    [investi ? eurS(valoPRU - investi) : "—", "+/− value PEA vs PRU",
-      valoPRU >= investi ? "pos" : "neg"],
+    [investi ? eurS(pv) : "—", "+/− value PEA", pv >= 0 ? "pos" : "neg"],
   ]);
 
   if (COURS.etat === "ko") {
@@ -1451,6 +1689,63 @@ function ongletMarches(hote){
       "Les valeurs ci-dessus sont celles du classeur.");
     note(s0, "Ni le relevé quotidien ni l'API CoinGecko n'ont répondu. Si la page est "
       + "ouverte depuis un fichier local, le relevé n'est pas lisible — c'est normal.");
+  }
+
+  // --- performance du PEA : capital investi contre valeur du jour
+  if (avecPRU.length) {
+    const s1 = section(hote, "Ce que le PEA a rapporté",
+      "La partie bleue est l'argent mis ; la partie verte, ce que le marché a ajouté "
+      + "par-dessus. La barre part de zéro, pas du prix de revient.");
+    const g1 = grille(s1);
+    const f1 = figure(g1, "c7");
+    barresInvesti(f1, avecPRU.map(p => ({
+      label: p.label, investi: p.pru * p.quantite,
+      valeur: prixDe(p).prix * p.quantite,
+    })).concat([{label: "Ensemble du PEA", investi, valeur: valoPRU}]));
+    legende(f1, [[css("--c1"), "Capital investi"], [css("--in"), "Plus-value latente"]],
+      true);
+    note(f1, "Les espèces du PEA n'ont pas de prix de revient : elles sont hors de ce "
+      + "graphique, mais dans le total de l'onglet.");
+
+    const f2 = figure(g1, "c5");
+    f2.innerHTML = '<span class="eyebrow">Valeur du PEA, mois après mois</span>';
+    const cpea = DATA.classes.find(c => c.cle === "pea");
+    chartSerie(f2, {valeurs: cpea.valeurs, libelles: MOIS, couleur: css("--c1"),
+      live: t.PEA ? t.PEA.live : null, titre: "Valeur du PEA par mois"});
+  }
+
+  // --- crypto : pas de prix de revient dans le classeur, donc valeur et composition
+  const ccry = DATA.classes.find(c => c.cle === "crypto");
+  if (ccry) {
+    const s2 = section(hote, "La crypto dans le temps",
+      "Le classeur ne garde pas de prix d'achat pour les cryptos : ce qui se suit "
+      + "ici, c'est la valeur, pas la plus-value.");
+    const g2 = grille(s2);
+    const f3 = figure(g2, "c7");
+    f3.innerHTML = '<span class="eyebrow">Valeur de la poche crypto</span>';
+    chartSerie(f3, {valeurs: ccry.valeurs, libelles: MOIS, couleur: css("--c6"),
+      live: cr, titre: "Valeur de la poche crypto par mois"});
+
+    // Deux wallets par jeton : c'est le jeton qui compte, pas où il dort.
+    const parJeton = {};
+    PF.positions.filter(p => p.classe === "Crypto").forEach(p => {
+      const c = prixDe(p);
+      const j = parJeton[p.ticker] || (parJeton[p.ticker] = {
+        label: nom(p.label).split(" —")[0], quantite: 0, valeur: 0, variation: null});
+      j.quantite += p.quantite;
+      j.valeur += c ? c.prix * p.quantite : p.valeur_tracker;
+      if (c) j.variation = c.variation;
+    });
+    const jetons = Object.values(parJeton).sort((a, b) => b.valeur - a.valeur);
+    const f4 = figure(g2, "c5");
+    f4.innerHTML = '<span class="eyebrow">Par jeton, tous portefeuilles confondus</span>';
+    barreEmpilee(f4, jetons.map((j, k) => ({
+      label: j.label, valeur: j.valeur, couleur: css(SLOTS[k % SLOTS.length])})));
+    barresH(f4, jetons.map((j, k) => ({
+      label: j.label, valeur: j.valeur, couleur: css(SLOTS[k % SLOTS.length]),
+      secondaire: fmtQte(j.quantite) + (j.variation != null
+        ? " · " + (j.variation > 0 ? "+" : "") + n1.format(j.variation) + " % / 24 h" : ""),
+    })));
   }
 
   // --- tableaux par classe
@@ -1617,6 +1912,14 @@ function init(){
     rendre();
   });
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", rendre);
+
+  // Les graphiques sont dessinés à la largeur de leur conteneur : redimensionner la
+  // fenêtre demande un nouveau tracé, sinon ils restent à l'échelle d'avant.
+  let minuteur = null;
+  addEventListener("resize", () => {
+    clearTimeout(minuteur);
+    minuteur = setTimeout(rendre, 180);
+  });
 
   $("#pied").innerHTML = "Généré depuis le classeur de suivi le "
     + esc(new Date(DATA.genere + "T12:00:00").toLocaleDateString("fr-FR",

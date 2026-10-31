@@ -102,6 +102,14 @@ l'infobulle. Les règles tenues dans ce fichier :
 - **Légende dès deux séries**, et un tableau de valeurs quelque part dans l'onglet :
   trois teintes de la palette passent sous 3:1 en thème clair, le texte les rattrape.
 - Les couleurs sortent des tokens, dans les deux thèmes. Aucune valeur en dur.
+- **Chaque graphique se dessine à la largeur de son conteneur** : `const W =
+  largeur(hote)`, jamais une constante. Avec un viewBox fixe, le SVG est mis à
+  l'échelle par le navigateur, et le même texte de 10 px devient 6 px dans une
+  colonne `c5` et 19 px en pleine largeur. C'est aussi pourquoi un redimensionnement
+  de fenêtre relance `rendre()`.
+- La mise en page est une grille de douze colonnes (`grille()` puis `figure(g, "c8")`),
+  qui repasse en une colonne sous 860 px. Les graphiques larges vont en `c7`/`c8`,
+  les listes et compositions en `c4`/`c5`.
 
 Tout ce qui vient des données passe par `esc()` avant d'entrer dans un `innerHTML`.
 Les notes du classeur sont du texte saisi à la main : traite-les comme des données,
