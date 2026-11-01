@@ -259,15 +259,23 @@ section.viz > .lede{font-size:13.5px;color:var(--ink2);margin:5px 0 0;max-width:
   color:var(--ink3);margin:20px 0 2px}
 
 /* ---------- calendrier des dépenses ---------- */
-.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:12px}
-.cal .jour-nom{font-size:10px;color:var(--ink3);text-align:center;padding-bottom:2px;
-  text-transform:uppercase;letter-spacing:.06em}
-.cal .case-j{aspect-ratio:1;border-radius:7px;background:var(--raised);
+/* Le calendrier ne s'étire pas : au-delà, les cases deviennent des pavés et la
+   lecture d'un mois demande de balayer l'écran. */
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:12px;
+  max-width:336px}
+.cal .jour-nom{font-size:9.5px;color:var(--ink3);text-align:center;padding-bottom:2px;
+  text-transform:uppercase;letter-spacing:.05em}
+.cal .case-j{aspect-ratio:1;border-radius:6px;background:var(--raised);
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:1px;border:1px solid transparent;min-height:38px}
-.cal .case-j.vide{background:none;border:0;min-height:0}
-.cal .case-j .n{font-family:var(--f-mono);font-size:11px;font-variant-numeric:tabular-nums}
-.cal .case-j .e{font-size:9px;opacity:.85;font-family:var(--f-mono)}
+  gap:0;border:1.5px solid transparent;padding:0;font:inherit;color:inherit;
+  cursor:pointer;min-height:0}
+.cal button.case-j:hover{border-color:var(--rule-strong)}
+.cal .case-j[aria-pressed="true"]{border-color:var(--accent)}
+.cal .case-j.rien{cursor:default}
+.cal .case-j.vide{background:none;border:0;cursor:default}
+.cal .case-j .n{font-family:var(--f-mono);font-size:10.5px;line-height:1.1;
+  font-variant-numeric:tabular-nums}
+.cal .case-j .e{font-size:8.5px;line-height:1.1;opacity:.85;font-family:var(--f-mono)}
 .cal .case-j.fort{color:#fff}
 
 /* ---------- liste des écritures ---------- */
@@ -1831,11 +1839,20 @@ function calendrier(hote, mois){
       ? `background:color-mix(in srgb,var(--out) ${Math.round(18 + part * 72)}%,var(--raised))`
       : "";
     g.insertAdjacentHTML("beforeend",
-      `<div class="case-j${part > .55 ? " fort" : ""}" style="${fond}" `
+      `<button type="button" class="case-j${part > .55 ? " fort" : ""}`
+      + `${v ? "" : " rien"}" style="${fond}" data-j="${d}" `
+      + `aria-pressed="${jourSel === d}" `
       + `title="${esc(d)} — ${esc(eur(v))}">`
       + `<span class="n">${j}</span>`
-      + (v ? `<span class="e">${Math.round(v)}</span>` : "") + `</div>`);
+      + (v ? `<span class="e">${Math.round(v)}</span>` : "") + `</button>`);
   }
+  g.addEventListener("click", ev => {
+    const b = ev.target.closest("button[data-j]");
+    if (!b || b.classList.contains("rien")) return;
+    jourSel = jourSel === b.dataset.j ? null : b.dataset.j;
+    filtreCat = null;                 // un jour et une catégorie se contrarient
+    rendre();
+  });
   hote.appendChild(g);
 
   const jours = Object.values(parJour);
@@ -1848,6 +1865,7 @@ function calendrier(hote, mois){
 
 /* ---------- la liste, filtrable ---------- */
 let filtreCat = null;
+let jourSel = null;
 
 function listeEcritures(hote, mois){
   const toutes = ecrituresDuMois(mois);
@@ -1864,8 +1882,21 @@ function listeEcritures(hote, mois){
   const ordre = Object.entries(cats).sort((a, b) => b[1] - a[1]);
   if (filtreCat && !cats[filtreCat]) filtreCat = null;
 
+  if (jourSel) {
+    const [a2, m2, j2] = jourSel.split("-");
+    const total = toutes.filter(t => t.date === jourSel)
+      .reduce((x, t) => x + t.montant, 0);
+    const b = document.createElement("div");
+    b.className = "filtres";
+    b.innerHTML = `<button type="button" id="tout-le-mois" aria-pressed="true">`
+      + `${j2}/${m2} · ${esc(eur(total))} — revenir au mois</button>`;
+    b.addEventListener("click", () => { jourSel = null; rendre(); });
+    hote.appendChild(b);
+  }
+
   const f = document.createElement("div");
   f.className = "filtres";
+  f.hidden = !!jourSel;
   f.innerHTML = `<button type="button" data-c="" aria-pressed="${!filtreCat}">`
     + `Tout · ${eur(toutes.reduce((a, t) => a + t.montant, 0))}</button>`
     + ordre.map(([c, v]) => `<button type="button" data-c="${esc(c)}" `
@@ -1878,8 +1909,10 @@ function listeEcritures(hote, mois){
   });
   hote.appendChild(f);
 
-  const vues = (filtreCat ? toutes.filter(t => (t.sous || "Autre") === filtreCat) : toutes)
-    .slice().sort((a, b) => b.date.localeCompare(a.date) || b.montant - a.montant);
+  let vues = toutes.slice();
+  if (jourSel) vues = vues.filter(t => t.date === jourSel);
+  else if (filtreCat) vues = vues.filter(t => (t.sous || "Autre") === filtreCat);
+  vues.sort((a, b) => b.date.localeCompare(a.date) || b.montant - a.montant);
   const ul = document.createElement("ul");
   ul.className = "ecritures";
   ul.innerHTML = vues.map(t => {
@@ -2285,7 +2318,12 @@ function init(){
   const sl = $("#mois");
   sl.innerHTML = MOIS.map((m, i) => `<option value="${i}">${esc(m)}</option>`).join("");
   sl.value = String(sel);
-  sl.addEventListener("change", () => { sel = Number(sl.value); rendre(); });
+  sl.addEventListener("change", () => {
+    sel = Number(sl.value);
+    jourSel = null;                   // le jour choisi n'existe pas dans l'autre mois
+    filtreCat = null;
+    rendre();
+  });
 
   // Les fenêtres plus longues que l'historique n'apparaissent pas dans la liste :
   // elles n'ajouteraient rien tant que le classeur ne remonte pas plus loin. Elles
