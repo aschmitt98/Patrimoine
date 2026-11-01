@@ -26,7 +26,12 @@ jobs:
           python-version: "3.12"
 
       # cours.py n'utilise que la bibliothèque standard : rien à installer.
+      # Le secret n'existe peut-être pas : la variable est alors vide, et cours.py
+      # retombe sur Yahoo. Sans ce bloc, en revanche, la clé n'atteindrait jamais
+      # le script — elle serait créée pour rien.
       - name: Relever les cours
+        env:
+          TWELVEDATA_KEY: ${{ secrets.TWELVEDATA_KEY }}
         run: python3 scripts/cours.py
 
       - name: Committer si ça a bougé
