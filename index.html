@@ -237,6 +237,57 @@ section.viz > .lede{font-size:13.5px;color:var(--ink2);margin:5px 0 0;max-width:
 .faits .src a{color:var(--accent)}
 .vide{color:var(--ink3);font-size:13.5px;padding:18px 2px;line-height:1.6}
 
+/* ---------- plan d'actions ---------- */
+.acte{display:flex;gap:13px;align-items:flex-start;background:var(--surface);
+  border:1px solid var(--rule);border-radius:12px;padding:14px 15px;margin-top:9px;
+  cursor:pointer;text-align:left;width:100%;font:inherit;color:var(--ink)}
+.acte:hover{border-color:var(--rule-strong)}
+.acte .case{flex:none;width:21px;height:21px;border-radius:6px;margin-top:1px;
+  border:1.5px solid var(--rule-strong);display:flex;align-items:center;
+  justify-content:center;font-size:13px;background:var(--ground);
+  color:transparent}
+.acte[aria-pressed="true"] .case{background:var(--in);border-color:var(--in);
+  color:#fff}
+.acte[aria-pressed="true"] .nom{text-decoration:line-through;color:var(--ink3)}
+.acte .corps{min-width:0;flex:1}
+.acte .nom{font-family:var(--f-display);font-size:16.5px;font-weight:600;
+  display:block;line-height:1.25}
+.acte .det{margin:4px 0 0;font-size:12.5px;color:var(--ink2);line-height:1.55}
+.acte .mnt{flex:none;font-family:var(--f-mono);font-size:14px;font-weight:600;
+  font-variant-numeric:tabular-nums;margin-top:1px}
+.quand{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink3);margin:20px 0 2px}
+
+/* ---------- calendrier des dépenses ---------- */
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:12px}
+.cal .jour-nom{font-size:10px;color:var(--ink3);text-align:center;padding-bottom:2px;
+  text-transform:uppercase;letter-spacing:.06em}
+.cal .case-j{aspect-ratio:1;border-radius:7px;background:var(--raised);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:1px;border:1px solid transparent;min-height:38px}
+.cal .case-j.vide{background:none;border:0;min-height:0}
+.cal .case-j .n{font-family:var(--f-mono);font-size:11px;font-variant-numeric:tabular-nums}
+.cal .case-j .e{font-size:9px;opacity:.85;font-family:var(--f-mono)}
+.cal .case-j.fort{color:#fff}
+
+/* ---------- liste des écritures ---------- */
+.filtres{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+.filtres button{appearance:none;border:1px solid var(--rule-strong);background:var(--surface);
+  color:var(--ink2);border-radius:999px;padding:5px 11px;font:inherit;font-size:12px;
+  cursor:pointer;white-space:nowrap}
+.filtres button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);
+  color:#fff}
+.ecritures{list-style:none;margin:12px 0 0;padding:0}
+.ecritures li{display:flex;gap:12px;align-items:baseline;padding:9px 2px;
+  border-top:1px solid var(--rule);font-size:13px}
+.ecritures li:first-child{border-top:0}
+.ecritures .d{font-family:var(--f-mono);font-size:11.5px;color:var(--ink3);flex:none;
+  width:52px}
+.ecritures .l{flex:1;min-width:0;overflow-wrap:anywhere}
+.ecritures .l small{display:block;color:var(--ink3);font-size:11px;margin-top:1px}
+.ecritures .m{font-family:var(--f-mono);font-weight:600;flex:none;
+  font-variant-numeric:tabular-nums}
+
 /* ---------- barres HTML ---------- */
 .bars{display:flex;flex-direction:column;gap:11px;margin-top:14px}
 .bar-row{min-width:0}
@@ -347,6 +398,7 @@ button.lien:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
       </div>
     </div>
     <nav role="tablist" aria-label="Vues">
+      <button role="tab" id="t-plan" aria-selected="false">Plan</button>
       <button role="tab" id="t-patrimoine" aria-selected="true">Patrimoine</button>
       <button role="tab" id="t-marches" aria-selected="false">Marchés</button>
       <button role="tab" id="t-flux" aria-selected="false">Flux</button>
@@ -359,6 +411,7 @@ button.lien:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 </header>
 
 <div class="wrap" hidden>
+  <div id="p-plan" role="tabpanel" hidden></div>
   <div id="p-patrimoine" role="tabpanel"></div>
   <div id="p-marches" role="tabpanel" hidden></div>
   <div id="p-flux" role="tabpanel" hidden></div>
@@ -402,8 +455,8 @@ function largeur(hote){
   const w = (hote.clientWidth || 0) - 24;        // les 12 px de marge du cadre
   return Math.max(300, Math.round(w > 0 ? w : 600));
 }
-const ONGLETS = ["patrimoine", "marches", "flux", "depenses", "immo", "bridge",
-  "veille"];
+const ONGLETS = ["plan", "patrimoine", "marches", "flux", "depenses", "immo",
+  "bridge", "veille"];
 const SLOTS = ["--c1", "--c2", "--c3", "--c4", "--c5", "--c6", "--c7"];
 
 /* ---------- formats ---------- */
@@ -1360,6 +1413,21 @@ function ongletDepenses(hote){
       + "elles se lisent en tendance, pas en dépassement.");
   }
 
+  // --- le mois jour par jour
+  s = section(hote, "Jour par jour — " + moisSel(),
+    "Chaque case est une journée. Plus elle est foncée, plus la dépense du jour "
+    + "est lourde par rapport au reste du mois.");
+  const fcal = figure(s);
+  if (!calendrier(fcal, moisSel())) {
+    note(fcal, "Pas d'écriture détaillée pour ce mois : le détail des dépenses "
+      + "du compte de vie courante n'a été repris qu'à partir de septembre 2026.");
+  }
+
+  // --- toutes les écritures
+  s = section(hote, "Toutes les écritures — " + moisSel(),
+    "Filtre par catégorie, ou parcours par date. Tous comptes confondus.");
+  listeEcritures(s, moisSel());
+
   s = section(hote, "Vision consolidée",
     "Les trois canaux de dépense réunis : le compte dédié aux dépenses courantes, "
     + "et le compte principal pour les charges fixes et les paiements passés dessus.");
@@ -1632,6 +1700,197 @@ function ongletBridge(hote){
     ul.innerHTML = mv.map(t => `<li>${t}</li>`).join("");
     s.appendChild(ul);
   }
+}
+
+
+/* =========================================================================
+   ONGLET 0 — PLAN D'ACTIONS
+   =========================================================================
+   Le plan vient des données : il applique la politique d'investissement, décidée
+   à froid, et ne la rediscute pas. Les cases cochées vivent dans le navigateur —
+   le jeton est en lecture seule, la page ne peut rien écrire dans le dépôt. Elles
+   survivent aux rechargements sur cet appareil, mais ne suivent pas ailleurs. */
+function cleFaits(){
+  return "faits:" + ((DATA.plan && DATA.plan.mois) || "plan");
+}
+function litFaits(){
+  try { return JSON.parse(localStorage.getItem(cleFaits()) || "{}"); }
+  catch (e) { return {}; }
+}
+function ecritFaits(f){
+  try { localStorage.setItem(cleFaits(), JSON.stringify(f)); } catch (e) {}
+}
+
+function ongletPlan(hote){
+  const plan = DATA.plan;
+  if (!plan || !(plan.actions || []).length) {
+    const s0 = section(hote, "Plan d'actions", "");
+    const d = document.createElement("p");
+    d.className = "vide";
+    d.textContent = "Aucun plan pour l'instant. Il s'écrit avec le skill "
+      + "« update patrimoine », à la fin de la mise à jour du mois.";
+    s0.appendChild(d);
+    return;
+  }
+
+  const faits = litFaits();
+  const n = plan.actions.length;
+  const ok = plan.actions.filter(a => faits[a.cle]).length;
+  const reste = plan.actions.filter(a => !faits[a.cle] && a.montant)
+    .reduce((t, a) => t + a.montant, 0);
+
+  const hero = document.createElement("div");
+  hero.className = "hero";
+  hero.innerHTML = `<span class="eyebrow">Plan — ${esc(plan.mois)}</span>`
+    + `<div class="k">${ok} / ${n}</div>`
+    + `<div class="sub"><span class="ctx">${esc(plan.intro || "")}</span></div>`;
+  hote.appendChild(hero);
+
+  tuiles(hote, [
+    [String(n - ok), "Actions restantes"],
+    [eur(reste), "Montant en jeu"],
+    [plan.reserve ? eur(plan.reserve.montant) : "—",
+     plan.reserve ? plan.reserve.libelle : "Réserve"],
+  ]);
+
+  const s = section(hote, "Ce qu'il reste à faire",
+    "Coche au fur et à mesure. Les coches restent sur cet ordinateur.");
+  let quand = null;
+  plan.actions.forEach(a => {
+    if (a.quand !== quand) {
+      quand = a.quand;
+      const t = document.createElement("p");
+      t.className = "quand";
+      t.textContent = quand;
+      s.appendChild(t);
+    }
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "acte";
+    b.setAttribute("aria-pressed", String(!!faits[a.cle]));
+    b.innerHTML = `<span class="case" aria-hidden="true">✓</span>`
+      + `<span class="corps"><b class="nom">${esc(a.libelle)}</b>`
+      + (a.detail ? `<p class="det">${esc(a.detail)}</p>` : "") + `</span>`
+      + (a.montant ? `<span class="mnt">${esc(eur(a.montant))}</span>` : "");
+    b.addEventListener("click", () => {
+      const f = litFaits();
+      f[a.cle] = !f[a.cle];
+      ecritFaits(f);
+      rendre();
+    });
+    s.appendChild(b);
+  });
+
+  if (DATA.politique) {
+    const po = DATA.politique;
+    const s2 = section(hote, "La politique qui produit ce plan",
+      "Décidée à froid, appliquée mécaniquement.");
+    // Les libellés viennent des données privées : ce fichier est publié en clair
+    // et nommerait sinon la banque et la commune.
+    const ul = document.createElement("ul");
+    ul.className = "flags";
+    ul.innerHTML = (po.reserve ? [po.reserve] : []).concat(po.lignes || [])
+      .map(l => `<b>${esc(eur(l.montant))}</b> — ${esc(l.libelle)}`)
+      .concat((po.regles || []).map(esc))
+      .map(x => `<li>${x}</li>`).join("");
+    s2.appendChild(ul);
+    if (po.note) note(s2, po.note);
+  }
+}
+
+/* ---------- calendrier de l'intensité de dépense ---------- */
+function ecrituresDuMois(mois){
+  return (DATA.transactions || []).filter(t =>
+    t.mois === mois && t.sens === "D" && t.pl === "O");
+}
+
+function calendrier(hote, mois){
+  const ops = ecrituresDuMois(mois);
+  if (!ops.length) return false;
+  const parJour = {};
+  ops.forEach(t => { parJour[t.date] = (parJour[t.date] || 0) + t.montant; });
+  const dates = Object.keys(parJour).sort();
+  const [an, mo] = dates[0].split("-").map(Number);
+  const premier = new Date(Date.UTC(an, mo - 1, 1));
+  const nbJours = new Date(Date.UTC(an, mo, 0)).getUTCDate();
+  // La semaine commence lundi : getUTCDay() rend 0 pour dimanche.
+  const decalage = (premier.getUTCDay() + 6) % 7;
+  const max = Math.max.apply(null, Object.values(parJour));
+
+  const g = document.createElement("div");
+  g.className = "cal";
+  g.innerHTML = ["lun", "mar", "mer", "jeu", "ven", "sam", "dim"]
+    .map(j => `<div class="jour-nom">${j}</div>`).join("")
+    + Array(decalage).fill('<div class="case-j vide"></div>').join("");
+  for (let j = 1; j <= nbJours; j++) {
+    const d = `${an}-${String(mo).padStart(2, "0")}-${String(j).padStart(2, "0")}`;
+    const v = parJour[d] || 0;
+    const part = max ? v / max : 0;
+    // Un fond de plus en plus dense ; le texte passe en blanc là où il le faut.
+    const fond = v
+      ? `background:color-mix(in srgb,var(--out) ${Math.round(18 + part * 72)}%,var(--raised))`
+      : "";
+    g.insertAdjacentHTML("beforeend",
+      `<div class="case-j${part > .55 ? " fort" : ""}" style="${fond}" `
+      + `title="${esc(d)} — ${esc(eur(v))}">`
+      + `<span class="n">${j}</span>`
+      + (v ? `<span class="e">${Math.round(v)}</span>` : "") + `</div>`);
+  }
+  hote.appendChild(g);
+
+  const jours = Object.values(parJour);
+  const sansDepense = nbJours - jours.length;
+  note(hote, `${jours.length} jours avec dépense sur ${nbJours}, ${sansDepense} sans. `
+    + `Journée la plus lourde : ${eur(max)}. Moyenne des jours actifs : `
+    + `${eur(jours.reduce((a, b) => a + b, 0) / jours.length)}.`);
+  return true;
+}
+
+/* ---------- la liste, filtrable ---------- */
+let filtreCat = null;
+
+function listeEcritures(hote, mois){
+  const toutes = ecrituresDuMois(mois);
+  if (!toutes.length) {
+    const d = document.createElement("p");
+    d.className = "vide";
+    d.textContent = "Pas d'écriture détaillée pour ce mois. Le détail des dépenses "
+      + "du compte de vie courante n'a été repris qu'à partir de septembre 2026.";
+    hote.appendChild(d);
+    return;
+  }
+  const cats = {};
+  toutes.forEach(t => { cats[t.sous || "Autre"] = (cats[t.sous || "Autre"] || 0) + t.montant; });
+  const ordre = Object.entries(cats).sort((a, b) => b[1] - a[1]);
+  if (filtreCat && !cats[filtreCat]) filtreCat = null;
+
+  const f = document.createElement("div");
+  f.className = "filtres";
+  f.innerHTML = `<button type="button" data-c="" aria-pressed="${!filtreCat}">`
+    + `Tout · ${eur(toutes.reduce((a, t) => a + t.montant, 0))}</button>`
+    + ordre.map(([c, v]) => `<button type="button" data-c="${esc(c)}" `
+      + `aria-pressed="${filtreCat === c}">${esc(c)} · ${eur(v)}</button>`).join("");
+  f.addEventListener("click", ev => {
+    const b = ev.target.closest("button");
+    if (!b) return;
+    filtreCat = b.dataset.c || null;
+    rendre();
+  });
+  hote.appendChild(f);
+
+  const vues = (filtreCat ? toutes.filter(t => (t.sous || "Autre") === filtreCat) : toutes)
+    .slice().sort((a, b) => b.date.localeCompare(a.date) || b.montant - a.montant);
+  const ul = document.createElement("ul");
+  ul.className = "ecritures";
+  ul.innerHTML = vues.map(t => {
+    const [, m, j] = t.date.split("-");
+    return `<li><span class="d">${j}/${m}</span>`
+      + `<span class="l">${esc(t.libelle)}`
+      + `<small>${esc(t.sous || "")}${t.source ? " · " + esc(t.source) : ""}`
+      + `${t.note ? " · " + esc(t.note) : ""}</small></span>`
+      + `<span class="m">${esc(eur(t.montant))}</span></li>`;
+  }).join("");
+  hote.appendChild(ul);
 }
 
 /* =========================================================================
@@ -1994,7 +2253,7 @@ async function chargerCours(){
 /* =========================================================================
    rendu
    ========================================================================= */
-const RENDUS = {patrimoine: ongletPatrimoine, marches: ongletMarches,
+const RENDUS = {plan: ongletPlan, patrimoine: ongletPatrimoine, marches: ongletMarches,
   flux: ongletFlux, depenses: ongletDepenses, immo: ongletImmo,
   bridge: ongletBridge, veille: ongletVeille};
 let actif = "patrimoine";
