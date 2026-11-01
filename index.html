@@ -259,10 +259,13 @@ section.viz > .lede{font-size:13.5px;color:var(--ink2);margin:5px 0 0;max-width:
   color:var(--ink3);margin:20px 0 2px}
 
 /* ---------- calendrier des dépenses ---------- */
-/* Le calendrier ne s'étire pas : au-delà, les cases deviennent des pavés et la
-   lecture d'un mois demande de balayer l'écran. */
-.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:12px;
-  max-width:336px}
+/* Le calendrier remplit la colonne qui l'accueille, sans dépasser 560 px : passé
+   là, les cases deviennent des pavés et lire un mois demande de balayer l'écran.
+   En colonne c5 c'est « 100 % » qui gagne, en une seule colonne c'est le plafond.
+   Un plafond fixe en pixels, lui, laissait le calendrier minuscule au milieu de
+   sa colonne. */
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin-top:12px;
+  max-width:min(100%,560px)}
 .cal .jour-nom{font-size:9.5px;color:var(--ink3);text-align:center;padding-bottom:2px;
   text-transform:uppercase;letter-spacing:.05em}
 .cal .case-j{aspect-ratio:1;border-radius:6px;background:var(--raised);
@@ -273,9 +276,9 @@ section.viz > .lede{font-size:13.5px;color:var(--ink2);margin:5px 0 0;max-width:
 .cal .case-j[aria-pressed="true"]{border-color:var(--accent)}
 .cal .case-j.rien{cursor:default}
 .cal .case-j.vide{background:none;border:0;cursor:default}
-.cal .case-j .n{font-family:var(--f-mono);font-size:10.5px;line-height:1.1;
+.cal .case-j .n{font-family:var(--f-mono);font-size:12px;line-height:1.15;
   font-variant-numeric:tabular-nums}
-.cal .case-j .e{font-size:8.5px;line-height:1.1;opacity:.85;font-family:var(--f-mono)}
+.cal .case-j .e{font-size:9.5px;line-height:1.15;opacity:.85;font-family:var(--f-mono)}
 .cal .case-j.fort{color:#fff}
 
 /* ---------- liste des écritures ---------- */
@@ -285,7 +288,11 @@ section.viz > .lede{font-size:13.5px;color:var(--ink2);margin:5px 0 0;max-width:
   cursor:pointer;white-space:nowrap}
 .filtres button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);
   color:#fff}
-.ecritures{list-style:none;margin:12px 0 0;padding:0}
+/* La liste borde le calendrier : sans plafond, cent écritures laisseraient un
+   mètre de vide en face des six semaines du mois. `overscroll-behavior` empêche
+   qu'arrivé au bout de la liste, le geste emporte la page. */
+.ecritures{list-style:none;margin:12px 0 0;padding:0;max-height:620px;
+  overflow-y:auto;overscroll-behavior:contain}
 .ecritures li{display:flex;gap:12px;align-items:baseline;padding:9px 2px;
   border-top:1px solid var(--rule);font-size:13px}
 .ecritures li:first-child{border-top:0}
@@ -1421,20 +1428,21 @@ function ongletDepenses(hote){
       + "elles se lisent en tendance, pas en dépassement.");
   }
 
-  // --- le mois jour par jour
+  // --- le mois jour par jour, et son détail juste à côté
+  // Les deux partagent une grille : un clic sur une case met à jour la liste qui
+  // la borde, et l'œil n'a pas à chercher ailleurs dans la page où le résultat
+  // est apparu.
   s = section(hote, "Jour par jour — " + moisSel(),
-    "Chaque case est une journée. Plus elle est foncée, plus la dépense du jour "
-    + "est lourde par rapport au reste du mois.");
-  const fcal = figure(s);
+    "Chaque case est une journée ; plus elle est foncée, plus la dépense du jour "
+    + "est lourde par rapport au reste du mois. Un clic sur une case ne garde que "
+    + "ses écritures, à droite ; sinon, filtre par catégorie.");
+  const gj = grille(s);
+  const fcal = figure(gj, "c5");
   if (!calendrier(fcal, moisSel())) {
     note(fcal, "Pas d'écriture détaillée pour ce mois : le détail des dépenses "
       + "du compte de vie courante n'a été repris qu'à partir de septembre 2026.");
   }
-
-  // --- toutes les écritures
-  s = section(hote, "Toutes les écritures — " + moisSel(),
-    "Filtre par catégorie, ou parcours par date. Tous comptes confondus.");
-  listeEcritures(s, moisSel());
+  listeEcritures(figure(gj, "c7"), moisSel());
 
   s = section(hote, "Vision consolidée",
     "Les trois canaux de dépense réunis : le compte dédié aux dépenses courantes, "
@@ -2291,10 +2299,17 @@ const RENDUS = {plan: ongletPlan, patrimoine: ongletPatrimoine, marches: ongletM
   bridge: ongletBridge, veille: ongletVeille};
 let actif = "patrimoine";
 
-function rendre(){
+/* Vider l'hôte met sa hauteur à zéro, et le navigateur ramène alors le défilement
+   en haut de page : choisir un jour ou une catégorie renvoyait l'écran au titre de
+   l'onglet. On relit la position avant, on la repose après — le DOM est reconstruit
+   de façon synchrone, donc sa hauteur est rétablie quand on la repose. Si le
+   nouveau contenu est plus court, le navigateur borne de lui-même. */
+function rendre(garderVue = true){
   const hote = $("#p-" + actif);
+  const y = garderVue ? window.scrollY : 0;
   hote.textContent = "";
   RENDUS[actif](hote);
+  if (window.scrollY !== y) window.scrollTo(0, y);
 }
 function onglet(nom2){
   actif = nom2;
@@ -2302,7 +2317,7 @@ function onglet(nom2){
     $("#t-" + o).setAttribute("aria-selected", String(o === nom2));
     $("#p-" + o).hidden = o !== nom2;
   });
-  rendre();
+  rendre(false);                      // changer d'onglet, c'est repartir du haut
   if (location.hash.slice(1) !== nom2) history.replaceState(null, "", "#" + nom2);
 }
 
