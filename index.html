@@ -306,6 +306,14 @@ section.viz > .lede{font-size:13.5px;color:var(--ink2);margin:5px 0 0;max-width:
 /* ---------- barres HTML ---------- */
 .bars{display:flex;flex-direction:column;gap:11px;margin-top:14px}
 .bar-row{min-width:0}
+/* Une barre qui filtre la liste est un vrai bouton — pour le clavier, pour les
+   lecteurs d'écran, et pour que le survol dise qu'il se passe quelque chose. */
+button.bar-row{appearance:none;background:none;border:0;padding:3px 5px;margin:-3px -5px;
+  width:calc(100% + 10px);text-align:left;font:inherit;color:inherit;cursor:pointer;
+  border-radius:7px;display:block}
+button.bar-row:hover{background:var(--raised)}
+button.bar-row[aria-pressed="true"]{background:var(--raised);
+  box-shadow:inset 0 0 0 1px var(--accent)}
 .bar-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px;
   margin-bottom:4px}
 .bar-top .nm{font-size:13px;font-weight:500;min-width:0;overflow-wrap:anywhere}
@@ -683,6 +691,10 @@ function tuiles(parent, items){
 function barresH(parent, lignes, opts){
   opts = opts || {};
   const max = opts.max || Math.max.apply(null, lignes.map(l => Math.abs(l.valeur) || 0)) || 1;
+  // Une ligne devient cliquable si l'appelant a donné `auClic` ET que la ligne
+  // porte une `cle` : une catégorie sans écriture à montrer reste inerte plutôt
+  // que d'offrir un bouton qui ne ferait rien.
+  const clic = typeof opts.auClic === "function";
   const d = document.createElement("div");
   d.className = "bars";
   d.innerHTML = lignes.map(l => {
@@ -690,7 +702,12 @@ function barresH(parent, lignes, opts){
     const w = Math.max(Math.abs(l.valeur || 0) / max * 100, l.valeur ? 1.5 : 0);
     const cible = l.cible ? `<span class="cible" style="left:calc(${
       Math.min(l.cible / max * 100, 100)}% - 1px)" title="cible"></span>` : "";
-    return `<div class="bar-row"><div class="bar-top">`
+    const bouton = clic && l.cle;
+    return (bouton
+      ? `<button type="button" class="bar-row" data-cle="${esc(l.cle)}" `
+        + `aria-pressed="${!!l.actif}">`
+      : `<div class="bar-row">`)
+      + `<div class="bar-top">`
       + `<span class="nm">${em ? em + " " : ""}${esc(nm)}</span>`
       + `<span class="vl">${esc(l.affiche || eur(l.valeur))}`
       + (l.secondaire ? `<s>${esc(l.secondaire)}</s>` : "")
@@ -698,8 +715,13 @@ function barresH(parent, lignes, opts){
       + `</span></div>`
       + `<div class="track">${cible}`
       + `<span class="fill" style="width:${w}%;background:${l.couleur || css("--accent")}">`
-      + `</span></div></div>`;
+      + `</span></div>`
+      + (bouton ? `</button>` : `</div>`);
   }).join("");
+  if (clic) d.addEventListener("click", ev => {
+    const b = ev.target.closest("button[data-cle]");
+    if (b) opts.auClic(b.dataset.cle);
+  });
   parent.appendChild(d);
   return d;
 }
@@ -1396,6 +1418,13 @@ function ongletDepenses(hote){
     [eur(i < 0 ? null : pl.total_fixes.valeurs[i]), "Charges fixes"],
     [eur(i < 0 ? null : pl.total_directes.valeurs[i]), "Paiements directs"],
   ]);
+  note(hote, "Les trois se distinguent par le compte qui paie, pas par la nature "
+    + "de la dépense : c'est pourquoi « Restaurants » peut apparaître des deux "
+    + "côtés. Dépenses courantes — ce qui passe par le compte dédié à la vie "
+    + "quotidienne, le seul confronté au budget mensuel. Charges fixes — les "
+    + "prélèvements récurrents du compte principal : prêts, assurances, mutuelle. "
+    + "Paiements directs — les dépenses ponctuelles payées depuis le compte "
+    + "principal, hors budget courant.");
 
   let s = section(hote, "Budget courant tenu, mois par mois",
     "Les dépenses du compte courant face au virement mensuel de " + n0.format(cible) + " €.");
@@ -1403,29 +1432,69 @@ function ongletDepenses(hote){
   chartBudget(f);
   if (pl.total_courant.note) note(f, pl.total_courant.note);
 
-  // --- catégories vs cible
+  // --- les trois blocs de catégories, cliquables
   s = section(hote, "Par catégorie — " + moisSel(),
-    "Le trait vertical marque la cible mensuelle de la catégorie.");
+    "Un clic sur une barre ne garde que ses écritures dans la liste plus bas.");
   if (i < 0) {
     note(s, "Pas de P&L pour ce mois.");
   } else {
-    const cats = pl.categories
+    // Le graphique parle le vocabulaire du référentiel, les écritures celui de la
+    // saisie : même catégorie, deux graphies. `clefCat` les rapproche, et seules
+    // celles qui ont des écritures ce mois-ci deviennent des boutons — une barre
+    // qui ne mènerait nulle part reste inerte.
+    const dispo = sousDuMois(moisSel());
+    const lignesDe = (nom, couleur, avecCible) => pl[nom]
       .map(c => ({c, v: c.valeurs[i]}))
       .filter(o => o.v)
       .sort((a, b) => Math.abs(b.v) - Math.abs(a.v))
       .map(({c, v}) => {
+        const cle = clefCat(c.label);
         let flag = null;
-        if (c.budget) {
+        if (avecCible && c.budget) {
           const ecart = v - c.budget;
           flag = ecart > c.budget * .1 ? ["over", eurS(ecart)]
             : ecart > 0 ? ["watch", eurS(ecart)] : ["ok", eurS(ecart)];
         }
-        return {label: c.label, valeur: v, cible: c.budget,
-          couleur: v > (c.budget || Infinity) ? css("--out") : css("--c1"), flag};
+        return {label: c.label, valeur: v, flag,
+          cible: avecCible ? c.budget : null,
+          couleur: avecCible && v > (c.budget || Infinity) ? css("--out") : couleur,
+          cle: dispo[cle] ? cle : null,
+          actif: filtreCat != null && dispo[cle] === filtreCat};
       });
-    barresH(s, cats);
+    const choisir = cle => {
+      const sous = dispo[cle];
+      if (!sous) return;
+      filtreCat = filtreCat === sous ? null : sous;
+      jourSel = null;                 // un jour et une catégorie se contrarient
+      rendre();
+      // Ici le défilement est voulu : la liste filtrée est plus bas dans la page,
+      // et sans ça le clic n'aurait l'air de rien faire.
+      const h = Array.prototype.find.call($("#p-depenses").querySelectorAll("h2"),
+        x => x.textContent.indexOf("Jour par jour") === 0);
+      if (h) h.scrollIntoView({block: "start"});
+    };
+
+    const g = grille(s);
+    barresH(bloc(g, "c12", "Dépenses courantes",
+      "Le trait vertical marque la cible mensuelle de la catégorie."),
+      lignesDe("categories", css("--c1"), true), {auClic: choisir});
+    // Les deux blocs du bas se lisent côte à côte : une échelle commune, sinon
+    // une barre pleine à gauche et une barre pleine à droite ne pèsent pas pareil.
+    const lf = lignesDe("fixes", css("--c2"), false);
+    const ld = lignesDe("directes", css("--c3"), false);
+    const maxBas = Math.max.apply(null,
+      [1].concat(lf.concat(ld).map(l => Math.abs(l.valeur || 0))));
+    const bf = bloc(g, "c6", "Charges fixes",
+      "Le socle incompressible. Il ne bouge que si un contrat change.");
+    barresH(bf, lf, {auClic: choisir, max: maxBas});
+    if (pl.total_fixes.note) note(bf, pl.total_fixes.note);
+    const bd = bloc(g, "c6", "Paiements directs",
+      "Ponctuels, payés depuis le compte principal, hors budget courant.");
+    barresH(bd, ld, {auClic: choisir, max: maxBas});
+    if (pl.total_directes.note) note(bd, pl.total_directes.note);
     note(s, "Les catégories sans cible — voyages, « autre » — ne sont pas budgétées : "
-      + "elles se lisent en tendance, pas en dépassement.");
+      + "elles se lisent en tendance, pas en dépassement. Une barre qui ne réagit "
+      + "pas au clic est une catégorie dont le détail n'est pas saisi ce mois-ci.");
   }
 
   // --- le mois jour par jour, et son détail juste à côté
@@ -1454,26 +1523,18 @@ function ongletDepenses(hote){
   if (pl.flux.consolide.note) note(f, pl.flux.consolide.note);
 
   // --- charges fixes
-  s = section(hote, "Charges fixes — " + moisSel(),
-    "Le socle incompressible. Il ne bouge que si un contrat change.");
-  if (i >= 0) {
-    barresH(s, pl.fixes.filter(l => l.valeurs[i]).map(l => ({
-      label: l.label, valeur: l.valeurs[i], couleur: css("--c2"),
-    })));
-    note(s, "Total " + eur(pl.total_fixes.valeurs[i]) + " · "
-      + (pl.total_fixes.note || ""));
-  }
-
   // --- faits marquants
   // « Sept. 2026 » doit retrouver le bloc « SEPTEMBRE 2026 », « Avr. 2026 » le bloc
   // « AVR. 2026 » : on compare sur les trois premières lettres, points retirés.
   const cle = moisSel().toLowerCase().replace(/\./g, "").slice(0, 3);
-  const bloc = pl.faits.find(b => b.titre.toLowerCase().replace(/\./g, "")
+  // Pas « bloc » : c'est le nom d'une fonction globale, et un const local la
+  // masquerait dans toute la fonction, y compris plus haut que sa déclaration.
+  const blocFaits = pl.faits.find(b => b.titre.toLowerCase().replace(/\./g, "")
     .startsWith(cle));
-  const aff = bloc || pl.faits[0];
+  const aff = blocFaits || pl.faits[0];
   if (aff) {
     s = section(hote, "Dépenses inhabituelles — " + aff.titre.toLowerCase(),
-      bloc ? "Ce qui explique l'écart du mois. Touche pour déplier."
+      blocFaits ? "Ce qui explique l'écart du mois. Touche pour déplier."
         : "Aucun relevé de faits marquants pour " + moisSel()
           + " — voici le dernier mois documenté.");
     depliants(s, aff.faits.map(f2 => ({titre: nom(f2.titre), texte: f2.texte})));
@@ -1818,6 +1879,26 @@ function ongletPlan(hote){
 function ecrituresDuMois(mois){
   return (DATA.transactions || []).filter(t =>
     t.mois === mois && t.sens === "D" && t.pl === "O");
+}
+
+/* Le référentiel écrit « 🍽️  Restaurants & Sorties », la saisie « Restaurants &
+   sorties » : même catégorie, deux graphies. On les rapproche sur une clé sans
+   emoji, sans accent, sans casse ni ponctuation. Les libellés eux-mêmes viennent
+   des données privées — ce dépôt n'en connaît aucun, il ne sait que les comparer. */
+function clefCat(s){
+  return (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+/* Les sous-catégories réellement présentes ce mois-ci, indexées par cette clé.
+   C'est ce qui dit si une barre du graphique a un détail à montrer. */
+function sousDuMois(mois){
+  const m = {};
+  ecrituresDuMois(mois).forEach(t => {
+    const sous = t.sous || "Autre";
+    m[clefCat(sous)] = sous;
+  });
+  return m;
 }
 
 function calendrier(hote, mois){
