@@ -1,5 +1,5 @@
 {
- "maj": "2026-11-05T22:50:05+00:00",
+ "maj": "2026-11-06T22:21:02+00:00",
  "yahoo": {
   "WPEA.PA": {
    "prix": 7.118,
@@ -23,24 +23,24 @@
  },
  "coingecko": {
   "bitcoin": {
-   "prix": 67433,
+   "prix": 68164,
    "devise": "EUR",
-   "variation": -6.311
+   "variation": 0.59
   },
   "ethereum": {
-   "prix": 1986.17,
+   "prix": 2008.94,
    "devise": "EUR",
-   "variation": -8.558
+   "variation": 0.627
   },
   "chainlink": {
-   "prix": 9.52,
+   "prix": 9.82,
    "devise": "EUR",
-   "variation": -7.748
+   "variation": 2.556
   },
   "solana": {
-   "prix": 79.69,
+   "prix": 80.96,
    "devise": "EUR",
-   "variation": -6.831
+   "variation": 0.864
   }
  },
  "erreurs": {
