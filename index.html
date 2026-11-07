@@ -889,12 +889,21 @@ function chartEvolution(hote){
    ajouté. Leur somme est la valeur du PEA. Une seule courbe de valeur
    mélangerait les deux et ne dirait pas lequel des deux a bougé. */
 function chartPEA(hote){
-  const W = largeur(hote), H = 280, L = 52, R = 14, T = 18, B = 28;
-  const d0 = depart(PEA.serie.mois);
-  const ms = PEA.serie.mois.slice(d0), n = ms.length;
-  const eng = PEA.serie.engage.slice(d0);
-  const val = PEA.serie.valeur.slice(d0);
-  const {ticks, haut} = paliers(Math.max.apply(null, val.map(v => v || 0)));
+  const W = largeur(hote), H = 290, L = 52, R = 14, T = 18, B = 28;
+  const S = PEA.serie;
+  const d0 = depart(S.mois);
+  const ms = S.mois.slice(d0), n = ms.length;
+  const eng = S.engage.slice(d0);
+  const val = S.valeur.slice(d0);
+  const apport = (S.apport || []).slice(d0);
+  const marche = (S.marche || []).slice(d0);
+  const reporte = (S.reporte || []).slice(d0);
+
+  // La valeur n'existe qu'à partir du premier mois relevé : avant, seul
+  // l'argent versé est connu, et la bande de gain n'a pas de sens.
+  const p0 = val.findIndex(v => v != null);
+  const {ticks, haut} = paliers(Math.max.apply(null,
+    eng.concat(val.filter(v => v != null))));
   const x = i => L + i * (W - L - R) / Math.max(1, n - 1);
   const y = v => H - B - (v / haut) * (H - T - B);
   const s = sv("svg", {viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label":
@@ -906,36 +915,43 @@ function chartPEA(hote){
     s.appendChild(txt(L - 8, y(v) + 3.5, kE(v), {"text-anchor": "end", "font-size": 9.5}));
   });
 
-  const aire = (hautSerie, basSerie, couleur) => {
+  const chemin = (pts, de, a) => {
     let d = "";
-    for (let i = 0; i < n; i++)
-      d += (i ? "L" : "M") + x(i).toFixed(1) + " " + y(hautSerie[i]).toFixed(1) + " ";
-    for (let i = n - 1; i >= 0; i--)
-      d += "L" + x(i).toFixed(1) + " " + y(basSerie[i]).toFixed(1) + " ";
-    s.appendChild(sv("path", {d: d + "Z", fill: couleur}));
+    for (let i = de; i <= a; i++)
+      d += (i === de ? "M" : "L") + x(i).toFixed(1) + " " + y(pts[i]).toFixed(1) + " ";
+    return d;
   };
-  const zero = ms.map(() => 0);
-  aire(eng, zero, css("--c1"));
-  // Le gain se pose sur le capital : son épaisseur est la plus-value du mois.
-  aire(val.map((v, i) => v == null ? eng[i] : v), eng, css("--c3"));
-  // Deux pixels de surface entre les deux aires, comme ailleurs dans la page.
-  let sep = "";
-  for (let i = 0; i < n; i++)
-    sep += (i ? "L" : "M") + x(i).toFixed(1) + " " + y(eng[i]).toFixed(1) + " ";
-  s.appendChild(sv("path", {d: sep, fill: "none", stroke: css("--surface"),
-    "stroke-width": 2}));
+  // L'argent versé, depuis le premier achat.
+  let aireEng = chemin(eng, 0, n - 1);
+  for (let i = n - 1; i >= 0; i--) aireEng += "L" + x(i).toFixed(1) + " " + y(0).toFixed(1) + " ";
+  s.appendChild(sv("path", {d: aireEng + "Z", fill: css("--c1")}));
 
-  let dv = "";
-  for (let i = 0; i < n; i++)
-    dv += (i ? "L" : "M") + x(i).toFixed(1) + " " + y(val[i] == null ? eng[i] : val[i]).toFixed(1) + " ";
-  s.appendChild(sv("path", {d: dv, fill: "none", stroke: css("--ink"),
-    "stroke-width": 1.75, "stroke-linejoin": "round"}));
-  s.appendChild(sv("circle", {cx: x(n - 1), cy: y(val[n - 1]), r: 4,
-    fill: css("--ink"), stroke: css("--surface"), "stroke-width": 2}));
+  if (p0 >= 0) {
+    // Le gain se pose sur le capital : l'épaisseur de la bande est la plus-value.
+    let aireGain = chemin(val, p0, n - 1);
+    for (let i = n - 1; i >= p0; i--)
+      aireGain += "L" + x(i).toFixed(1) + " " + y(eng[i]).toFixed(1) + " ";
+    s.appendChild(sv("path", {d: aireGain + "Z", fill: css("--c3")}));
+    s.appendChild(sv("path", {d: chemin(eng, p0, n - 1), fill: "none",
+      stroke: css("--surface"), "stroke-width": 2}));
+    s.appendChild(sv("path", {d: chemin(val, p0, n - 1), fill: "none",
+      stroke: css("--ink"), "stroke-width": 1.75, "stroke-linejoin": "round"}));
+    s.appendChild(sv("circle", {cx: x(n - 1), cy: y(val[n - 1]), r: 4,
+      fill: css("--ink"), stroke: css("--surface"), "stroke-width": 2}));
+    // Où commence le relevé de valeur : avant ce trait, la page ne sait pas ce
+    // que le PEA valait, seulement ce qui y avait été versé.
+    if (p0 > 0) {
+      s.appendChild(sv("line", {x1: x(p0), x2: x(p0), y1: T - 4, y2: H - B,
+        stroke: css("--ink3"), "stroke-width": 1, "stroke-dasharray": "3 3"}));
+      s.appendChild(txt(x(p0) + 5, T + 6, "début du relevé",
+        {"font-size": 9.5, fill: css("--ink3")}));
+    }
+  }
 
+  const pas = Math.ceil(n / 9);
   ms.forEach((m, i) => {
-    if (n > 8 && i % 2) return;
-    s.appendChild(txt(x(i), H - B + 15, m.replace(/ 20\d\d/, "").replace(".", ""),
+    if (i % pas) return;
+    s.appendChild(txt(x(i), H - B + 15, m.replace(/ 20(\d\d)/, " $1").replace(".", ""),
       {"text-anchor": "middle", "font-size": 9.5}));
   });
   hote.appendChild(s);
@@ -951,12 +967,23 @@ function chartPEA(hote){
     i = Math.max(0, Math.min(n - 1, i));
     rail.setAttribute("x1", x(i)); rail.setAttribute("x2", x(i));
     rail.setAttribute("opacity", 1);
-    const g = (val[i] || 0) - eng[i];
+    const lignes = [`<b>${esc(ms[i])}</b>`];
+    if (val[i] != null) {
+      lignes.push(`${eur(val[i])} au total`);
+      lignes.push(`<span style="color:${css("--c3")}">■</span> gain `
+        + eurS(val[i] - eng[i]));
+    }
+    lignes.push(`<span style="color:${css("--c1")}">■</span> versé ${eur(eng[i])}`);
+    if (i > 0) {
+      const a = apport[i], mk = marche[i];
+      lignes.push("—");
+      lignes.push("sur le mois : " + (a ? "apport " + eurS(a) : "aucun apport"));
+      lignes.push(reporte[i] ? "marché non relevé ce mois-ci"
+        : (mk == null ? "marché inconnu" : "marché " + eurS(mk)));
+    }
     tip.show(x(i) / W * hote.clientWidth,
-      y(val[i] || eng[i]) / H * (hote.clientHeight - 24) + 14,
-      `<b>${esc(ms[i])}</b> — ${eur(val[i])}<br>`
-      + `<span style="color:${css("--c1")}">■</span> engagé ${eur(eng[i])}<br>`
-      + `<span style="color:${css("--c3")}">■</span> gain ${eurS(g)}`);
+      y(val[i] == null ? eng[i] : val[i]) / H * (hote.clientHeight - 24) + 14,
+      lignes.join("<br>"));
   };
   s.addEventListener("pointermove", bouge);
   s.addEventListener("pointerleave", () => { tip.hide(); rail.setAttribute("opacity", 0); });
@@ -2222,19 +2249,49 @@ function ongletMarches(hote){
     const tr = PEA.tri || {};
     const s1 = section(hote, "Ce que le PEA a rapporté",
       "L'argent versé et ce que le marché y a ajouté, séparés. La hauteur totale "
-      + "est la valeur du PEA ; la bande du haut est le gain.");
+      + "est la valeur du PEA ; la bande du haut est le gain. La courbe part du "
+      + "premier achat ; la valeur, elle, n'est connue qu'à partir du premier mois "
+      + "relevé.");
+    // La variation du dernier mois, et de quoi elle est faite : un apport est
+    // de l'argent versé, l'effet de marché est ce que les titres ont fait seuls.
+    const S = PEA.serie, k = S.mois.length - 1;
+    const prec = k > 0 ? S.mois[k - 1] : null;
+    const dVal = (k > 0 && S.valeur[k] != null && S.valeur[k - 1] != null)
+      ? S.valeur[k] - S.valeur[k - 1] : null;
     tuiles(s1, [
       [eur(PEA.total.engage), "Capital engagé"],
       [eur(PEA.total.valeur), "Valeur au " + PEA.arret],
       [eurS(PEA.total.gain), "Gain", PEA.total.gain >= 0 ? "pos" : "neg"],
+      [dVal == null ? "—" : eurS(dVal), prec ? "vs " + prec : "vs le mois d'avant",
+       dVal >= 0 ? "pos" : "neg"],
       [tr.taux == null ? "—" : n1.format(tr.taux * 100) + " %",
        tr.plafond ? "TRI par an, au plus" : "TRI par an",
        tr.taux >= 0 ? "pos" : "neg"],
     ]);
+    if (dVal != null) {
+      const ap = S.apport[k], mk = S.marche[k];
+      note(s1, "Sur le dernier mois, " + (ap ? "un apport de " + eurS(ap) : "aucun apport")
+        + " et " + (S.reporte[k] ? "une valeur non relevée — le marché de ce mois "
+            + "reste donc inconnu"
+          : mk == null ? "un effet de marché inconnu" : "un effet de marché de " + eurS(mk))
+        + ". Une variation n'est pas une performance tant qu'on n'a pas retiré "
+        + "l'argent qu'on vient de verser.");
+    }
     const g1 = grille(s1);
     const f1 = figure(g1, "c7");
     chartPEA(f1);
     legende(f1, [[css("--c1"), "Capital engagé"], [css("--c3"), "Gain"]], true);
+    // Le plat du début n'est pas un trou de données : il est à l'échelle.
+    if (PEA.serie.apport) {
+      const S2 = PEA.serie, p1 = S2.valeur.findIndex(v => v != null);
+      if (p1 > 0) {
+        const avant1 = S2.engage[p1 - 1];
+        note(f1, "La courbe semble plate jusqu'à " + esc(S2.mois[p1]) + " : elle l'est. "
+          + eur(avant1) + " avaient été versés en " + p1 + " mois, contre "
+          + eur(S2.apport[p1]) + " sur ce seul mois-là. Le plat est à l'échelle, "
+          + "ce n'est pas un trou de données.");
+      }
+    }
 
     const f2 = figure(g1, "c5");
     if (avecPRU.length) {
