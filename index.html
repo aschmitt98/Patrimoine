@@ -29,9 +29,9 @@
    cinq onglets. Même système visuel que l'app Hyrox — Barlow Condensed en titrage,
    IBM Plex en texte et en chiffres — avec la palette catégorielle validée en plus. */
 :root{
-  --ground:#f7f6f3; --surface:#fffefc; --raised:#f1efe9;
+  --ground:#efece5; --surface:#ffffff; --raised:#e4e0d6;
   --ink:#15171c; --ink2:#5a5f6b; --ink3:#8b8f9a;
-  --rule:#e3e0d9; --rule-strong:#cfcbc1;
+  --rule:#d8d3c8; --rule-strong:#bdb6a7;
   --accent:#2a78d6; --accent-soft:#e6eefa;
   /* Palette catégorielle validée, dans l'ordre fixe des slots 1→7. Les paires
      voisines sont celles qui passent les seuils de daltonisme : ne pas réordonner. */
@@ -41,7 +41,10 @@
   --good:#0ca30c; --warn:#fab219; --crit:#d03b3b;
   --shadow:0 1px 2px rgba(20,22,28,.06),0 4px 14px rgba(20,22,28,.05);
   --large:1180px;
-  --f-display:"Barlow Condensed","Arial Narrow",sans-serif;
+  /* Trois rayons, pas douze : le rayon dit de quel genre d'objet il
+     s'agit, et une valeur par élément ne disait plus rien. */
+  --r-s:5px; --r-m:12px; --r-pill:999px;
+  --f-display:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
   --f-body:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
   --f-mono:"IBM Plex Mono","SFMono-Regular",Menlo,monospace;
 }
@@ -83,24 +86,24 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
   padding-left:max(16px,env(safe-area-inset-left,0px));
   padding-right:max(16px,env(safe-area-inset-right,0px))}
 .lock-card{width:100%;max-width:380px;background:var(--surface);
-  border:1px solid var(--rule);border-radius:16px;padding:26px 22px;
+  border:1px solid var(--rule);border-radius:var(--r-m);padding:26px 22px;
   box-shadow:var(--shadow);display:flex;flex-direction:column;gap:14px}
 .lock-card h1{font-size:28px;line-height:1.05}
-.lock-card h1 span{display:block;font-family:var(--f-body);font-size:11px;font-weight:600;
-  letter-spacing:.09em;text-transform:uppercase;color:var(--ink3);margin-top:6px}
+.lock-card h1 span{display:block;font-family:var(--f-body);font-size:13px;font-weight:450;
+  letter-spacing:0;color:var(--ink3);margin-top:7px}
 .lock-card > p{margin:0;font-size:13.5px;color:var(--ink2);line-height:1.55}
-.lock-card label{font-size:11px;font-weight:600;letter-spacing:.07em;
-  text-transform:uppercase;color:var(--ink3);display:block;margin-bottom:6px}
+.lock-card label{font-size:13px;font-weight:500;letter-spacing:0;
+  color:var(--ink2);display:block;margin-bottom:6px}
 .lock-card input[type=password]{width:100%;font-family:var(--f-body);font-size:16px;
   color:var(--ink);background:var(--ground);border:1px solid var(--rule-strong);
-  border-radius:10px;padding:11px 12px}
+  border-radius:var(--r-m);padding:11px 12px}
 .lock-card input[type=password]:focus-visible{outline:2px solid var(--accent);
   outline-offset:1px;border-color:var(--accent)}
 .lock-card label.check{display:flex;align-items:center;gap:8px;font-size:12.5px;
   font-weight:400;letter-spacing:0;text-transform:none;color:var(--ink2);
   margin-bottom:0;cursor:pointer}
 .lock-card label.check input{accent-color:var(--accent);width:15px;height:15px;flex:none}
-button.primary{appearance:none;border:0;border-radius:10px;padding:12px 16px;
+button.primary{appearance:none;border:0;border-radius:var(--r-m);padding:12px 16px;
   background:var(--accent);color:#fff;font-family:var(--f-display);font-size:17px;
   font-weight:600;letter-spacing:.02em;cursor:pointer}
 button.primary:disabled{opacity:.55;cursor:default}
@@ -123,11 +126,13 @@ button.primary:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 @media (max-width:860px){
   .c4,.c5,.c6,.c7,.c8{grid-column:span 12}
 }
-h1,h2,h3{margin:0;font-family:var(--f-display);font-weight:600;text-wrap:balance;
-  letter-spacing:.01em}
+h1,h2,h3{margin:0;font-family:var(--f-display);font-weight:650;text-wrap:balance;
+  letter-spacing:-.011em}
 .mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
-.eyebrow{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
-  color:var(--ink3)}
+/* Pas de capitales ni d'interlettrage : une étiquette en petites capitales
+   espacées au-dessus de chaque chiffre est le tic le plus reconnaissable d'une
+   page générée, et elle ne dit rien que le libellé ne dise déjà. */
+.eyebrow{font-size:12.5px;font-weight:450;letter-spacing:0;color:var(--ink3)}
 
 /* ---------- en-tête ---------- */
 header{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--ground);
@@ -138,17 +143,17 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:va
 .head-row{display:flex;align-items:center;justify-content:space-between;gap:12px;
   flex-wrap:wrap}
 .brand{font-family:var(--f-display);font-size:22px;font-weight:700;line-height:1.05}
-.brand small{display:block;font-family:var(--f-body);font-size:10.5px;font-weight:500;
-  letter-spacing:.07em;text-transform:uppercase;color:var(--ink3);margin-top:3px}
+.brand small{display:block;font-family:var(--f-body);font-size:12px;font-weight:450;
+  letter-spacing:0;color:var(--ink3);margin-top:2px}
 .head-tools{display:flex;align-items:center;gap:7px;flex:none}
 select#mois,select#periode{appearance:none;font-family:var(--f-body);font-size:13px;font-weight:600;
   color:var(--ink);background:var(--surface);border:1px solid var(--rule-strong);
-  border-radius:9px;padding:7px 26px 7px 10px;cursor:pointer;
+  border-radius:var(--r-m);padding:7px 26px 7px 10px;cursor:pointer;
   background-image:linear-gradient(45deg,transparent 50%,var(--ink3) 50%),
                    linear-gradient(135deg,var(--ink3) 50%,transparent 50%);
   background-position:calc(100% - 14px) 52%,calc(100% - 9px) 52%;
   background-size:5px 5px,5px 5px;background-repeat:no-repeat}
-button.ghost{width:34px;height:34px;flex:none;border-radius:9px;
+button.ghost{width:34px;height:34px;flex:none;border-radius:var(--r-m);
   border:1px solid var(--rule-strong);background:var(--surface);color:var(--ink2);
   cursor:pointer;font-size:14px;line-height:1}
 button.ghost:hover{color:var(--ink)}
@@ -162,11 +167,16 @@ nav button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--acce
   outline-offset:3px;border-radius:3px}
 
 /* ---------- blocs ---------- */
-section.viz{margin-top:28px}
-section.viz > h2{font-size:20px}
+/* Niveau 2 — une section se marque par l'espace et un filet, pas par une boîte. */
+section.viz{margin-top:40px;padding-top:22px;border-top:1px solid var(--rule)}
+section.viz:first-child{border-top:0;padding-top:0}
+section.viz > h2{font-size:21px}
 section.viz > .lede{font-size:13.5px;color:var(--ink2);margin:5px 0 0;max-width:62ch}
-.figure{margin-top:14px;background:var(--surface);border:1px solid var(--rule);
-  border-radius:14px;padding:14px 12px 10px;box-shadow:var(--shadow);position:relative}
+/* Niveau 3 — ce qui est posé sur la page. Les surfaces se distinguent désormais
+   par la valeur, donc ni trait ni ombre : la même ombre douce sous chaque bloc
+   était de la décoration, pas de la hiérarchie. */
+.figure{margin-top:14px;background:var(--surface);border:0;
+  border-radius:var(--r-m);padding:16px 14px 12px;position:relative}
 .figure svg{display:block;width:100%;height:auto;overflow:visible}
 .legend{display:flex;flex-wrap:wrap;gap:10px 14px;margin:11px 2px 2px;font-size:11.5px;
   color:var(--ink2)}
@@ -175,32 +185,37 @@ section.viz > .lede{font-size:13.5px;color:var(--ink2);margin:5px 0 0;max-width:
 .legend i.sq{height:10px;width:10px;border-radius:3px}
 .note{font-size:12px;color:var(--ink3);margin:10px 2px 0;line-height:1.5}
 .tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--ground);
-  font-size:11.5px;line-height:1.5;padding:7px 9px;border-radius:7px;white-space:nowrap;
+  font-size:11.5px;line-height:1.5;padding:7px 9px;border-radius:var(--r-s);white-space:nowrap;
   opacity:0;transition:opacity .1s;z-index:5;font-family:var(--f-mono);
   font-variant-numeric:tabular-nums}
 .tip.on{opacity:1}
 .tip b{font-family:var(--f-body)}
 
 /* ---------- héros ---------- */
-.hero{margin-top:20px;background:var(--surface);border:1px solid var(--rule);
-  border-radius:16px;padding:22px 20px;box-shadow:var(--shadow)}
-.hero .k{font-family:var(--f-mono);font-size:clamp(34px,5vw,52px);font-weight:600;
-  line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+/* Niveau 1 — le chiffre du mois, nu. Pas de carte : il n'a rien à côté de quoi
+   se distinguer, et l'encadrer le rabaissait au rang des figures. L'ordre place
+   le libellé SOUS le nombre, qui se lit donc en premier. */
+.hero{margin-top:26px;display:flex;flex-direction:column;align-items:flex-start}
+.hero > .eyebrow{order:2;margin-top:4px}
+.hero .k{order:1;font-family:var(--f-mono);font-size:clamp(38px,5.6vw,60px);font-weight:600;
+  line-height:.98;font-variant-numeric:tabular-nums;letter-spacing:-.035em}
+.hero .sub{order:3}
 /* Héros à deux chiffres de tête, côte à côte sur grand écran. */
-.hero.duo{display:grid;grid-template-columns:1fr 1fr;gap:20px 28px}
-.hero.duo > div{min-width:0}
-.hero.duo .k{font-size:clamp(30px,4vw,44px)}
+.hero.duo{display:grid;grid-template-columns:1fr 1fr;gap:22px 34px}
+.hero.duo > div{min-width:0;display:flex;flex-direction:column;align-items:flex-start}
+.hero.duo > div > .eyebrow{order:2;margin-top:4px}
+.hero.duo .k{font-size:clamp(32px,4.4vw,50px)}
 @media (max-width:620px){.hero.duo{grid-template-columns:1fr}}
 .hero .sub{display:flex;flex-wrap:wrap;align-items:baseline;gap:9px;margin-top:10px}
 .delta{font-family:var(--f-mono);font-size:14px;font-weight:600;padding:3px 8px;
-  border-radius:999px;font-variant-numeric:tabular-nums}
+  border-radius:var(--r-pill);font-variant-numeric:tabular-nums}
 .delta.up{color:var(--in);background:color-mix(in srgb,var(--in) 12%,transparent)}
 .delta.down{color:var(--out);background:color-mix(in srgb,var(--out) 14%,transparent)}
 .hero .ctx{font-size:13px;color:var(--ink2)}
-.live{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:600;
-  letter-spacing:.06em;text-transform:uppercase;color:var(--in);
+.live{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:550;
+  letter-spacing:0;color:var(--in);
   background:color-mix(in srgb,var(--in) 13%,transparent);padding:3px 9px;
-  border-radius:999px;white-space:nowrap}
+  border-radius:var(--r-pill);white-space:nowrap}
 .live i{width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block}
 .live.vieux{color:var(--warn);background:color-mix(in srgb,var(--warn) 18%,transparent)}
 .live.ko{color:var(--ink3);background:var(--raised)}
@@ -208,8 +223,8 @@ section.viz > .lede{font-size:13.5px;color:var(--ink2);margin:5px 0 0;max-width:
 /* ---------- tuiles ---------- */
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(134px,1fr));gap:10px;
   margin-top:14px}
-.tile{background:var(--surface);border:1px solid var(--rule);border-radius:12px;
-  padding:14px 13px;min-width:0}
+.tile{background:var(--surface);border:0;border-radius:var(--r-m);
+  padding:15px 14px;min-width:0}
 .tile .k{font-family:var(--f-mono);font-size:20px;font-weight:600;line-height:1.1;
   font-variant-numeric:tabular-nums;white-space:nowrap}
 .tile .l{font-size:11px;color:var(--ink3);margin-top:6px;line-height:1.35}
@@ -219,11 +234,11 @@ section.viz > .lede{font-size:13.5px;color:var(--ink2);margin:5px 0 0;max-width:
 .tile.marque.mauvais{border-left-color:var(--out)}
 
 /* ---------- barre de composition, cent pour cent ---------- */
-.empilee{display:flex;gap:2px;height:16px;border-radius:5px;overflow:hidden;
+.empilee{display:flex;gap:2px;height:16px;border-radius:var(--r-s);overflow:hidden;
   margin:4px 0 14px}
 .empilee span{display:block;height:100%}
 /* ---------- barre en deux segments : capital investi puis plus-value ---------- */
-.track2{display:flex;gap:2px;height:13px;border-radius:5px;background:var(--raised);
+.track2{display:flex;gap:2px;height:13px;border-radius:var(--r-s);background:var(--raised);
   overflow:hidden}
 .track2 .seg{display:block;height:100%}
 .sous{font-size:11px;color:var(--ink3);margin-top:5px;font-family:var(--f-mono);
@@ -239,10 +254,10 @@ section.viz > .lede{font-size:13.5px;color:var(--ink2);margin:5px 0 0;max-width:
 
 /* ---------- plan d'actions ---------- */
 .acte{display:flex;gap:13px;align-items:flex-start;background:var(--surface);
-  border:1px solid var(--rule);border-radius:12px;padding:14px 15px;margin-top:9px;
+  border:1px solid var(--rule);border-radius:var(--r-m);padding:14px 15px;margin-top:9px;
   cursor:pointer;text-align:left;width:100%;font:inherit;color:var(--ink)}
 .acte:hover{border-color:var(--rule-strong)}
-.acte .case{flex:none;width:21px;height:21px;border-radius:6px;margin-top:1px;
+.acte .case{flex:none;width:21px;height:21px;border-radius:var(--r-s);margin-top:1px;
   border:1.5px solid var(--rule-strong);display:flex;align-items:center;
   justify-content:center;font-size:13px;background:var(--ground);
   color:transparent}
@@ -255,7 +270,7 @@ section.viz > .lede{font-size:13.5px;color:var(--ink2);margin:5px 0 0;max-width:
 .acte .det{margin:4px 0 0;font-size:12.5px;color:var(--ink2);line-height:1.55}
 .acte .mnt{flex:none;font-family:var(--f-mono);font-size:14px;font-weight:600;
   font-variant-numeric:tabular-nums;margin-top:1px}
-.quand{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+.quand{font-size:13px;font-weight:600;letter-spacing:0;
   color:var(--ink3);margin:20px 0 2px}
 
 /* ---------- calendrier des dépenses ---------- */
@@ -266,9 +281,9 @@ section.viz > .lede{font-size:13.5px;color:var(--ink2);margin:5px 0 0;max-width:
    sa colonne. */
 .cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin-top:12px;
   max-width:min(100%,560px)}
-.cal .jour-nom{font-size:9.5px;color:var(--ink3);text-align:center;padding-bottom:2px;
-  text-transform:uppercase;letter-spacing:.05em}
-.cal .case-j{aspect-ratio:1;border-radius:6px;background:var(--raised);
+.cal .jour-nom{font-size:10.5px;color:var(--ink3);text-align:center;padding-bottom:3px;
+  letter-spacing:0}
+.cal .case-j{aspect-ratio:1;border-radius:var(--r-s);background:var(--raised);
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   gap:0;border:1.5px solid transparent;padding:0;font:inherit;color:inherit;
   cursor:pointer;min-height:0}
@@ -283,23 +298,31 @@ section.viz > .lede{font-size:13.5px;color:var(--ink2);margin:5px 0 0;max-width:
 
 /* ---------- liste des écritures ---------- */
 .filtres{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
-.filtres button{appearance:none;border:1px solid var(--rule-strong);background:var(--surface);
-  color:var(--ink2);border-radius:999px;padding:5px 11px;font:inherit;font-size:12px;
+.filtres button{appearance:none;border:0;background:var(--raised);
+  color:var(--ink2);border-radius:var(--r-pill);padding:6px 12px;font:inherit;font-size:12.5px;
   cursor:pointer;white-space:nowrap}
-.filtres button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);
-  color:#fff}
+.filtres button:hover{color:var(--ink)}
+/* Le montant est une valeur, pas la suite du libellé : chasse fixe et teinte en
+   retrait le détachent, là où un point médian ne faisait que les coller. */
+.filtres button b{font-family:var(--f-mono);font-weight:600;font-variant-numeric:tabular-nums;
+  margin-left:7px;color:var(--ink3)}
+.filtres button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.filtres button[aria-pressed="true"] b{color:#fff;opacity:.72}
 /* La liste borde le calendrier : sans plafond, cent écritures laisseraient un
    mètre de vide en face des six semaines du mois. `overscroll-behavior` empêche
    qu'arrivé au bout de la liste, le geste emporte la page. */
 .ecritures{list-style:none;margin:12px 0 0;padding:0;max-height:620px;
   overflow-y:auto;overscroll-behavior:contain}
-.ecritures li{display:flex;gap:12px;align-items:baseline;padding:9px 2px;
-  border-top:1px solid var(--rule);font-size:13px}
+.ecritures li{display:flex;gap:14px;align-items:baseline;padding:12px 2px;
+  border-top:1px solid var(--rule);font-size:13.5px}
 .ecritures li:first-child{border-top:0}
 .ecritures .d{font-family:var(--f-mono);font-size:11.5px;color:var(--ink3);flex:none;
   width:52px}
 .ecritures .l{flex:1;min-width:0;overflow-wrap:anywhere}
-.ecritures .l small{display:block;color:var(--ink3);font-size:11px;margin-top:1px}
+.ecritures .l small{display:block;color:var(--ink3);font-size:11.5px;margin-top:2px}
+.ecritures .l small i{font-style:normal}
+.ecritures .l small i::before{content:"";display:inline-block;width:1px;height:9px;
+  background:var(--rule-strong);margin:0 7px;vertical-align:-1px}
 .ecritures .m{font-family:var(--f-mono);font-weight:600;flex:none;
   font-variant-numeric:tabular-nums}
 
@@ -310,7 +333,7 @@ section.viz > .lede{font-size:13.5px;color:var(--ink2);margin:5px 0 0;max-width:
    lecteurs d'écran, et pour que le survol dise qu'il se passe quelque chose. */
 button.bar-row{appearance:none;background:none;border:0;padding:3px 5px;margin:-3px -5px;
   width:calc(100% + 10px);text-align:left;font:inherit;color:inherit;cursor:pointer;
-  border-radius:7px;display:block}
+  border-radius:var(--r-s);display:block}
 button.bar-row:hover{background:var(--raised)}
 button.bar-row[aria-pressed="true"]{background:var(--raised);
   box-shadow:inset 0 0 0 1px var(--accent)}
@@ -320,29 +343,29 @@ button.bar-row[aria-pressed="true"]{background:var(--raised);
 .bar-top .vl{font-family:var(--f-mono);font-size:12.5px;font-weight:600;flex:none;
   font-variant-numeric:tabular-nums}
 .bar-top .vl s{text-decoration:none;color:var(--ink3);font-weight:400;margin-left:6px}
-.track{height:9px;border-radius:5px;background:var(--raised);overflow:hidden;position:relative}
+.track{height:9px;border-radius:var(--r-s);background:var(--raised);overflow:hidden;position:relative}
 /* display:block — un span reste en ligne, et une hauteur en % sur un élément
    en ligne ne s'applique pas : la barre serait invisible. */
-.track .fill{display:block;height:100%;border-radius:5px}
+.track .fill{display:block;height:100%;border-radius:var(--r-s)}
 .track.signed{background:none}
 .track.signed .mid{position:absolute;top:-2px;bottom:-2px;width:1px;background:var(--rule-strong)}
 .track.signed .fill{position:absolute;top:0;bottom:0}
 .cible{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink2);
   border-radius:1px}
-.flag{font-size:11px;font-weight:600;padding:2px 7px;border-radius:999px;flex:none;
+.flag{font-size:11px;font-weight:600;padding:2px 7px;border-radius:var(--r-pill);flex:none;
   white-space:nowrap}
 .flag.ok{color:var(--good);background:color-mix(in srgb,var(--good) 13%,transparent)}
 .flag.over{color:var(--crit);background:color-mix(in srgb,var(--crit) 13%,transparent)}
 .flag.watch{color:var(--warn);background:color-mix(in srgb,var(--warn) 18%,transparent)}
 
 /* ---------- tableaux ---------- */
-.scroll{overflow-x:auto;margin-top:14px;border:1px solid var(--rule);border-radius:12px;
+.scroll{overflow-x:auto;margin-top:14px;border:1px solid var(--rule);border-radius:var(--r-m);
   background:var(--surface)}
 table{border-collapse:collapse;width:100%;font-size:13px}
 th,td{padding:8px 11px;text-align:right;white-space:nowrap;
   border-bottom:1px solid var(--rule)}
 th:first-child,td:first-child{text-align:left;white-space:normal;min-width:168px}
-thead th{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;
+thead th{font-size:12px;font-weight:600;letter-spacing:0;
   color:var(--ink3);background:var(--raised);position:sticky;top:0}
 tbody tr:last-child td{border-bottom:0}
 td.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
@@ -359,14 +382,14 @@ td .hint{display:block;font-size:11px;color:var(--ink3);font-weight:400;line-hei
 
 /* ---------- listes dépliables ---------- */
 .fold{appearance:none;width:100%;text-align:left;background:var(--surface);
-  border:1px solid var(--rule);border-radius:12px;padding:13px 14px;margin-top:9px;
+  border:1px solid var(--rule);border-radius:var(--r-m);padding:13px 14px;margin-top:9px;
   cursor:pointer;color:var(--ink);font:inherit;display:flex;gap:11px;align-items:flex-start}
 .fold .ar{flex:none;color:var(--ink3);font-size:12px;margin-top:3px;transition:transform .15s}
 .fold[aria-expanded="true"] .ar{transform:rotate(90deg)}
 .fold b{font-family:var(--f-display);font-size:16.5px;font-weight:600;display:block}
 .fold p{margin:0;font-size:13px;color:var(--ink2);display:none;line-height:1.55}
 .fold p.open{display:block;margin-top:5px}
-.insight{background:var(--accent-soft);border-radius:12px;padding:13px 15px;margin-top:14px}
+.insight{background:var(--accent-soft);border-radius:var(--r-m);padding:13px 15px;margin-top:14px}
 .insight .eyebrow{color:var(--accent)}
 .insight p{margin:5px 0 0;font-size:13.5px;line-height:1.6}
 .flags{list-style:none;margin:12px 0 0;padding:0}
@@ -968,7 +991,7 @@ function ongletPatrimoine(hote){
     + `<div class="k">${eur(tot)}</div><div class="sub">`
     + (d == null ? "" : `<span class="delta ${d >= 0 ? "up" : "down"}">${eurS(d)}</span>`)
     + `<span class="ctx">${d == null ? "premier mois suivi"
-      : "vs " + ms[i - 1] + " · " + n1.format(d / prec * 100) + " %"}</span></div>`
+      : n1.format(d / prec * 100) + " % de plus qu'en " + ms[i - 1]}</span></div>`
     + `<div class="sub"><span class="ctx">Depuis ${esc(ms[0])} : `
     + `<b class="mono">${eurS(tot - depuis)}</b> (${n1.format((tot / depuis - 1) * 100)} %)`
     + `</span></div>`;
@@ -1068,10 +1091,11 @@ function ongletPatrimoine(hote){
     const totPEA = etf.reduce((a, e) => a + (e.valeur || 0), 0);
     barresH(s, etf.map((e, k) => ({
       label: e.label, valeur: e.valeur, couleur: css(SLOTS[k % SLOTS.length]),
-      secondaire: n1.format((e.valeur || 0) / totPEA * 100) + " % · cible " + (e.cible || "—"),
+      secondaire: n1.format((e.valeur || 0) / totPEA * 100) + " % pour une cible de "
+        + (e.cible || "—"),
     })), {max: totPEA});
     note(s, "Frais courants : " + etf.filter(e => e.ter && e.ter !== "—")
-      .map(e => nom(e.label).split(" ")[0] + " " + e.ter).join(" · ") + ".");
+      .map(e => nom(e.label).split(" ")[0] + " " + e.ter).join(", ") + ".");
   }
 
   // --- alertes
@@ -1282,7 +1306,7 @@ function ongletFlux(hote){
     }));
     barresH(s, src);
     const t = src.reduce((a, b) => a + b.valeur, 0);
-    note(s, "Total encaissé " + eur(t) + " · " + eur(t * 12) + " sur douze mois "
+    note(s, "Total encaissé " + eur(t) + ", soit " + eur(t * 12) + " sur douze mois "
       + "à ce rythme.");
   }
 
@@ -1656,7 +1680,7 @@ function ongletImmo(hote){
   hero.innerHTML = `<span class="eyebrow">${esc(nom(im.equity.label))} — ${esc(ms[j])}</span>`
     + `<div class="k">${eur(eq)}</div><div class="sub">`
     + (prec == null ? "" : `<span class="delta up">${eurS(eq - prec)}</span>`)
-    + `<span class="ctx">sur ${eur(val)} de valeur estimée · `
+    + `<span class="ctx">sur ${eur(val)} de valeur estimée, `
     + n1.format(eq / val * 100) + " % détenu</span></div>";
   hote.appendChild(hero);
 
@@ -1978,7 +2002,7 @@ function listeEcritures(hote, mois){
     const b = document.createElement("div");
     b.className = "filtres";
     b.innerHTML = `<button type="button" id="tout-le-mois" aria-pressed="true">`
-      + `${j2}/${m2} · ${esc(eur(total))} — revenir au mois</button>`;
+      + `${j2}/${m2}, ${esc(eur(total))} — revenir au mois</button>`;
     b.addEventListener("click", () => { jourSel = null; rendre(); });
     hote.appendChild(b);
   }
@@ -1987,9 +2011,9 @@ function listeEcritures(hote, mois){
   f.className = "filtres";
   f.hidden = !!jourSel;
   f.innerHTML = `<button type="button" data-c="" aria-pressed="${!filtreCat}">`
-    + `Tout · ${eur(toutes.reduce((a, t) => a + t.montant, 0))}</button>`
+    + `Tout <b>${eur(toutes.reduce((a, t) => a + t.montant, 0))}</b></button>`
     + ordre.map(([c, v]) => `<button type="button" data-c="${esc(c)}" `
-      + `aria-pressed="${filtreCat === c}">${esc(c)} · ${eur(v)}</button>`).join("");
+      + `aria-pressed="${filtreCat === c}">${esc(c)} <b>${eur(v)}</b></button>`).join("");
   f.addEventListener("click", ev => {
     const b = ev.target.closest("button");
     if (!b) return;
@@ -2008,8 +2032,8 @@ function listeEcritures(hote, mois){
     const [, m, j] = t.date.split("-");
     return `<li><span class="d">${j}/${m}</span>`
       + `<span class="l">${esc(t.libelle)}`
-      + `<small>${esc(t.sous || "")}${t.source ? " · " + esc(t.source) : ""}`
-      + `${t.note ? " · " + esc(t.note) : ""}</small></span>`
+      + `<small>${esc(t.sous || "")}${t.source ? `<i>${esc(t.source)}</i>` : ""}`
+      + `${t.note ? `<i>${esc(t.note)}</i>` : ""}</small></span>`
       + `<span class="m">${esc(eur(t.montant))}</span></li>`;
   }).join("");
   hote.appendChild(ul);
@@ -2167,7 +2191,7 @@ function ongletMarches(hote){
     barresH(f4, jetons.map((j, k) => ({
       label: j.label, valeur: j.valeur, couleur: css(SLOTS[k % SLOTS.length]),
       secondaire: fmtQte(j.quantite) + (j.variation != null
-        ? " · " + (j.variation > 0 ? "+" : "") + n1.format(j.variation) + " % / 24 h" : ""),
+        ? ", " + (j.variation > 0 ? "+" : "") + n1.format(j.variation) + " % sur 24 h" : ""),
     })));
   }
 
@@ -2185,8 +2209,8 @@ function ongletMarches(hote){
       const dp = v == null ? null : v - p.valeur_tracker;
       const detail = fmtQte(p.quantite)
         + (cl === "PEA" ? " parts" : "")
-        + (p.pru ? " · PRU " + fmtQte(p.pru) + " €" : "")
-        + (p.derive ? " · quantité reconstituée" : "");
+        + (p.pru ? ", prix de revient " + fmtQte(p.pru) + " €" : "")
+        + (p.derive ? ", quantité reconstituée" : "");
       return {cellules: [
         esc(p.label) + `<span class="hint">${esc(detail)}</span>`,
         {v: c ? cours(c.prix) : "—"},
@@ -2308,7 +2332,7 @@ function ongletVeille(hote){
         ? `<a href="${esc(p.url)}" target="_blank" rel="noopener noreferrer">`
           + `${esc(p.source)}</a>`
         : esc(p.source);
-      return `<li>${esc(p.fait)}<span class="src">${src} · ${esc(p.date)}</span></li>`;
+      return `<li>${esc(p.fait)}<span class="src">${src}, le ${esc(p.date)}</span></li>`;
     }).join("");
     s.appendChild(ul);
   });
