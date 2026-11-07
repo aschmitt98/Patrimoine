@@ -477,11 +477,12 @@ const DEPOT = {
   branche: "main",
   tracker: "data/patrimoine.json",
   portefeuille: "data/portefeuille.json",
+  pea: "data/pea.json",
 };
 
 /* Données du classeur et portefeuille : remplis après connexion, jamais avant.
    Tout ce qui les lit passe par une fonction, appelée après `connecter()`. */
-let DATA = null, PF = null, MOIS = [], sel = 0;
+let DATA = null, PF = null, PEA = null, MOIS = [], sel = 0;
 /* Cours de marché : chargés après l'ouverture, la page s'affiche sans eux. */
 let COURS = {yahoo: {}, coingecko: {}, maj: null, direct: false, etat: "attente"};
 /* Le jeton sert encore après la connexion : la note de veille n'est lue qu'à
@@ -878,6 +879,84 @@ function chartEvolution(hote){
       + eur(c.valeurs[i])).reverse().join("<br>");
     tip.show(x(i) / W * hote.clientWidth, y(tot[i]) / H * (hote.clientHeight - 24) + 14,
       `<b>${esc(ms[i])}</b> — ${eur(tot[i])}<br>${corps}`);
+  };
+  s.addEventListener("pointermove", bouge);
+  s.addEventListener("pointerleave", () => { tip.hide(); rail.setAttribute("opacity", 0); });
+}
+
+/* Ce que le PEA a rapporté. Deux aires empilées, et c'est tout le propos :
+   la première est l'argent versé dans les titres, la seconde ce que le marché y a
+   ajouté. Leur somme est la valeur du PEA. Une seule courbe de valeur
+   mélangerait les deux et ne dirait pas lequel des deux a bougé. */
+function chartPEA(hote){
+  const W = largeur(hote), H = 280, L = 52, R = 14, T = 18, B = 28;
+  const d0 = depart(PEA.serie.mois);
+  const ms = PEA.serie.mois.slice(d0), n = ms.length;
+  const eng = PEA.serie.engage.slice(d0);
+  const val = PEA.serie.valeur.slice(d0);
+  const {ticks, haut} = paliers(Math.max.apply(null, val.map(v => v || 0)));
+  const x = i => L + i * (W - L - R) / Math.max(1, n - 1);
+  const y = v => H - B - (v / haut) * (H - T - B);
+  const s = sv("svg", {viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label":
+    "Capital engagé dans le PEA et plus-value, de " + ms[0] + " à " + ms[n - 1]});
+
+  ticks.forEach(v => {
+    s.appendChild(sv("line", {x1: L, x2: W - R, y1: y(v), y2: y(v),
+      stroke: css("--rule"), "stroke-width": 1}));
+    s.appendChild(txt(L - 8, y(v) + 3.5, kE(v), {"text-anchor": "end", "font-size": 9.5}));
+  });
+
+  const aire = (hautSerie, basSerie, couleur) => {
+    let d = "";
+    for (let i = 0; i < n; i++)
+      d += (i ? "L" : "M") + x(i).toFixed(1) + " " + y(hautSerie[i]).toFixed(1) + " ";
+    for (let i = n - 1; i >= 0; i--)
+      d += "L" + x(i).toFixed(1) + " " + y(basSerie[i]).toFixed(1) + " ";
+    s.appendChild(sv("path", {d: d + "Z", fill: couleur}));
+  };
+  const zero = ms.map(() => 0);
+  aire(eng, zero, css("--c1"));
+  // Le gain se pose sur le capital : son épaisseur est la plus-value du mois.
+  aire(val.map((v, i) => v == null ? eng[i] : v), eng, css("--c3"));
+  // Deux pixels de surface entre les deux aires, comme ailleurs dans la page.
+  let sep = "";
+  for (let i = 0; i < n; i++)
+    sep += (i ? "L" : "M") + x(i).toFixed(1) + " " + y(eng[i]).toFixed(1) + " ";
+  s.appendChild(sv("path", {d: sep, fill: "none", stroke: css("--surface"),
+    "stroke-width": 2}));
+
+  let dv = "";
+  for (let i = 0; i < n; i++)
+    dv += (i ? "L" : "M") + x(i).toFixed(1) + " " + y(val[i] == null ? eng[i] : val[i]).toFixed(1) + " ";
+  s.appendChild(sv("path", {d: dv, fill: "none", stroke: css("--ink"),
+    "stroke-width": 1.75, "stroke-linejoin": "round"}));
+  s.appendChild(sv("circle", {cx: x(n - 1), cy: y(val[n - 1]), r: 4,
+    fill: css("--ink"), stroke: css("--surface"), "stroke-width": 2}));
+
+  ms.forEach((m, i) => {
+    if (n > 8 && i % 2) return;
+    s.appendChild(txt(x(i), H - B + 15, m.replace(/ 20\d\d/, "").replace(".", ""),
+      {"text-anchor": "middle", "font-size": 9.5}));
+  });
+  hote.appendChild(s);
+
+  const tip = tipFor(hote);
+  const rail = sv("line", {y1: T - 4, y2: H - B, stroke: css("--ink3"),
+    "stroke-width": 1, "stroke-dasharray": "2 3", opacity: 0});
+  s.appendChild(rail);
+  const bouge = ev => {
+    const r = s.getBoundingClientRect();
+    const px = ((ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left) / r.width * W;
+    let i = Math.round((px - L) / ((W - L - R) / Math.max(1, n - 1)));
+    i = Math.max(0, Math.min(n - 1, i));
+    rail.setAttribute("x1", x(i)); rail.setAttribute("x2", x(i));
+    rail.setAttribute("opacity", 1);
+    const g = (val[i] || 0) - eng[i];
+    tip.show(x(i) / W * hote.clientWidth,
+      y(val[i] || eng[i]) / H * (hote.clientHeight - 24) + 14,
+      `<b>${esc(ms[i])}</b> — ${eur(val[i])}<br>`
+      + `<span style="color:${css("--c1")}">■</span> engagé ${eur(eng[i])}<br>`
+      + `<span style="color:${css("--c3")}">■</span> gain ${eurS(g)}`);
   };
   s.addEventListener("pointermove", bouge);
   s.addEventListener("pointerleave", () => { tip.hide(); rail.setAttribute("opacity", 0); });
@@ -2135,28 +2214,72 @@ function ongletMarches(hote){
       + "ouverte depuis un fichier local, le relevé n'est pas lisible — c'est normal.");
   }
 
-  // --- performance du PEA : capital investi contre valeur du jour
-  if (avecPRU.length) {
+  // --- ce que le PEA a rapporté : le flux, le gain, et le taux
+  // Deux horloges coexistent ici, et les mélanger serait la meilleure façon de
+  // rendre les chiffres incomparables : la partie haute est arrêtée au dernier
+  // mois du tracker, les barres du bas sont au cours du jour. Chacune le dit.
+  if (PEA && PEA.total && PEA.total.engage) {
+    const tr = PEA.tri || {};
+    const s1 = section(hote, "Ce que le PEA a rapporté",
+      "L'argent versé et ce que le marché y a ajouté, séparés. La hauteur totale "
+      + "est la valeur du PEA ; la bande du haut est le gain.");
+    tuiles(s1, [
+      [eur(PEA.total.engage), "Capital engagé"],
+      [eur(PEA.total.valeur), "Valeur au " + PEA.arret],
+      [eurS(PEA.total.gain), "Gain", PEA.total.gain >= 0 ? "pos" : "neg"],
+      [tr.taux == null ? "—" : n1.format(tr.taux * 100) + " %",
+       tr.plafond ? "TRI par an, au plus" : "TRI par an",
+       tr.taux >= 0 ? "pos" : "neg"],
+    ]);
+    const g1 = grille(s1);
+    const f1 = figure(g1, "c7");
+    chartPEA(f1);
+    legende(f1, [[css("--c1"), "Capital engagé"], [css("--c3"), "Gain"]], true);
+
+    const f2 = figure(g1, "c5");
+    if (avecPRU.length) {
+      barresInvesti(f2, avecPRU.map(p => ({
+        label: p.label, investi: p.pru * p.quantite,
+        valeur: prixDe(p).prix * p.quantite,
+      })).concat([{label: "Ensemble du PEA", investi, valeur: valoPRU}]));
+      legende(f2, [[css("--c1"), "Capital investi"], [css("--in"), "Plus-value latente"]],
+        true);
+      note(f2, "Au cours du jour, ligne par ligne — l'aire de gauche, elle, s'arrête "
+        + "au dernier mois relevé.");
+    }
+
+    tableau(s1, ["Ligne", "Engagé", "Valeur", "Gain"], PEA.lignes.map(l => ({
+      cellules: [esc(nom(l.label)), {v: eur(l.engage)}, {v: eur(l.valeur)},
+                 {v: eurS(l.gain), cl: l.gain >= 0 ? "pos" : "neg"}],
+    })).concat([{cl: "tot", cellules: ["Total", {v: eur(PEA.total.engage)},
+      {v: eur(PEA.total.valeur)},
+      {v: eurS(PEA.total.gain), cl: PEA.total.gain >= 0 ? "pos" : "neg"}]}]));
+
+    note(s1, "Le TRI est le taux annuel qui, appliqué à chaque versement depuis sa "
+      + "propre date, reconstitue le gain. Deux mille euros placés il y a deux ans "
+      + "et deux mille euros placés le mois dernier n'ont pas eu le même temps pour "
+      + "travailler, et c'est tout ce que ce taux dit de plus que « gain sur "
+      + "capital ». Ce n'est pas une promesse de rendement : annualiser quelques "
+      + "mois de hausse donne un chiffre plus spectaculaire que durable.");
+    if (PEA.note) note(s1, PEA.note);
+    if (PEA.total.especes) {
+      note(s1, "À quoi s'ajoutent " + eur(PEA.total.especes) + " d'espèces sur le PEA, "
+        + "qui ne sont ni engagées ni productives.");
+    }
+  } else if (avecPRU.length) {
+    // Repli tant que le relevé d'opérations n'est pas dans le dépôt.
     const s1 = section(hote, "Ce que le PEA a rapporté",
       "La partie bleue est l'argent mis ; la partie verte, ce que le marché a ajouté "
       + "par-dessus. La barre part de zéro, pas du prix de revient.");
-    const g1 = grille(s1);
-    const f1 = figure(g1, "c7");
+    const f1 = figure(s1);
     barresInvesti(f1, avecPRU.map(p => ({
       label: p.label, investi: p.pru * p.quantite,
       valeur: prixDe(p).prix * p.quantite,
     })).concat([{label: "Ensemble du PEA", investi, valeur: valoPRU}]));
     legende(f1, [[css("--c1"), "Capital investi"], [css("--in"), "Plus-value latente"]],
       true);
-    note(f1, "Les espèces du PEA n'ont pas de prix de revient : elles sont hors de ce "
-      + "graphique, mais dans le total de l'onglet.");
-
-    const f2 = figure(g1, "c5");
-    f2.innerHTML = '<span class="eyebrow">Valeur du PEA, mois après mois</span>';
-    const cpea = DATA.classes.find(c => c.cle === "pea"), dp = depart(MOIS);
-    chartSerie(f2, {valeurs: cpea.valeurs.slice(dp), libelles: MOIS.slice(dp),
-      couleur: css("--c1"),
-      live: t.PEA ? t.PEA.live : null, titre: "Valeur du PEA par mois"});
+    note(f1, "Le détail des versements n'est pas encore dans le dépôt : sans lui, "
+      + "pas de taux de rendement.");
   }
 
   // --- crypto : pas de prix de revient dans le classeur, donc valeur et composition
@@ -2554,12 +2677,16 @@ async function ghListe(chemin, jeton){
 }
 
 async function connecter(jeton, retenir){
-  const [tracker, pf] = await Promise.all([
+  // Le rendement du PEA est une pièce rapportée : si le fichier n'est pas encore
+  // là, la page s'ouvre sans la section plutôt que de refuser le jeton.
+  const [tracker, pf, pea] = await Promise.all([
     ghGet(DEPOT.tracker, jeton),
     ghGet(DEPOT.portefeuille, jeton),
+    ghGet(DEPOT.pea, jeton).catch(() => null),
   ]);
   DATA = tracker;
   PF = pf;
+  PEA = pea;
   JETON = jeton;
   MOIS = DATA.patrimoine.mois;
   sel = MOIS.length - 1;
