@@ -113,9 +113,11 @@ button.primary:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
   border-top:1px solid var(--rule);padding-top:13px}
 .lock-note b{color:var(--ink2);font-weight:600}
 .lock-note a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:2px}
-.wrap{max-width:var(--large);margin:0 auto;padding-block:0 72px;
-  padding-left:max(16px,env(safe-area-inset-left,0px));
-  padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:none;margin:0 0 0 var(--rail);padding:26px 34px 80px;
+  padding-right:max(34px,env(safe-area-inset-right,0px))}
+/* Le contenu reste à une largeur lisible quel que soit l'écran. */
+.wrap > [role="tabpanel"]{max-width:var(--large);margin:0 auto}
+
 /* Grille de douze colonnes : une figure occupe 4, 6, 8 ou 12 colonnes sur grand
    écran, et la largeur entière dès qu'on descend sous 860 px. */
 .grille{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));
@@ -134,35 +136,48 @@ h1,h2,h3{margin:0;font-family:var(--f-display);font-weight:650;text-wrap:balance
    page générée, et elle ne dit rien que le libellé ne dise déjà. */
 .eyebrow{font-size:12.5px;font-weight:450;letter-spacing:0;color:var(--ink3)}
 
-/* ---------- en-tête ---------- */
-header{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--ground);
-  border-bottom:1px solid var(--rule)}
-.head-in{max-width:var(--large);margin:0 auto;padding-block:14px 0;
-  padding-left:max(16px,env(safe-area-inset-left,0px));
-  padding-right:max(16px,env(safe-area-inset-right,0px))}
-.head-row{display:flex;align-items:center;justify-content:space-between;gap:12px;
-  flex-wrap:wrap}
-.brand{font-family:var(--f-display);font-size:22px;font-weight:700;line-height:1.05}
+/* ---------- la colonne de navigation ----------
+   Huit vues alignées horizontalement obligeaient à balayer, et mangeaient deux
+   lignes de hauteur sur chaque écran. En colonne, elles tiennent toutes, lisibles,
+   et la page récupère sa verticale. `display:contents` sur .head-row dissout le
+   conteneur horizontal pour que la marque, la navigation et les contrôles
+   deviennent trois enfants de la colonne, ordonnés librement. */
+:root{--rail:236px}
+header{position:fixed;inset:0 auto 0 0;width:var(--rail);z-index:20;
+  background:var(--ground);border-right:1px solid var(--rule)}
+.head-in{display:flex;flex-direction:column;height:100%;gap:20px;max-width:none;
+  padding:22px 16px calc(18px + env(safe-area-inset-bottom,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px))}
+.head-row{display:contents}
+.brand{order:1;font-family:var(--f-display);font-size:21px;font-weight:700;
+  line-height:1.05;padding:0 12px}
 .brand small{display:block;font-family:var(--f-body);font-size:12px;font-weight:450;
   letter-spacing:0;color:var(--ink3);margin-top:2px}
-.head-tools{display:flex;align-items:center;gap:7px;flex:none}
-select#mois,select#periode{appearance:none;font-family:var(--f-body);font-size:13px;font-weight:600;
+/* Les contrôles descendent en pied de colonne : on les règle une fois, on ne
+   les relit pas à chaque section. */
+.head-tools{order:3;margin-top:auto;display:flex;flex-direction:column;
+  align-items:stretch;gap:7px;padding-top:16px;border-top:1px solid var(--rule)}
+select#mois,select#periode{appearance:none;width:100%;font-family:var(--f-body);
+  font-size:13px;font-weight:600;
   color:var(--ink);background:var(--surface);border:1px solid var(--rule-strong);
-  border-radius:var(--r-m);padding:7px 26px 7px 10px;cursor:pointer;
+  border-radius:var(--r-s);padding:8px 26px 8px 10px;cursor:pointer;
   background-image:linear-gradient(45deg,transparent 50%,var(--ink3) 50%),
                    linear-gradient(135deg,var(--ink3) 50%,transparent 50%);
   background-position:calc(100% - 14px) 52%,calc(100% - 9px) 52%;
   background-size:5px 5px,5px 5px;background-repeat:no-repeat}
-button.ghost{width:34px;height:34px;flex:none;border-radius:var(--r-m);
+button.ghost{height:34px;flex:none;border-radius:var(--r-s);
   border:1px solid var(--rule-strong);background:var(--surface);color:var(--ink2);
   cursor:pointer;font-size:14px;line-height:1}
 button.ghost:hover{color:var(--ink)}
-nav{display:flex;gap:18px;margin-top:12px;overflow-x:auto;scrollbar-width:none}
+nav{order:2;display:flex;flex-direction:column;gap:2px;margin:0;overflow-y:auto;
+  scrollbar-width:none}
 nav::-webkit-scrollbar{display:none}
-nav button{appearance:none;background:none;border:0;padding:0 0 10px;cursor:pointer;
-  font-family:var(--f-display);font-size:17px;font-weight:600;color:var(--ink3);
-  border-bottom:2px solid transparent;letter-spacing:.02em;white-space:nowrap;flex:none}
-nav button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+nav button{appearance:none;background:none;border:0;cursor:pointer;width:100%;
+  text-align:left;padding:9px 12px;border-radius:var(--r-s);
+  font-family:var(--f-display);font-size:15.5px;font-weight:550;color:var(--ink2);
+  letter-spacing:0;white-space:nowrap}
+nav button:hover{color:var(--ink);background:var(--raised)}
+nav button[aria-selected="true"]{background:var(--accent);color:#fff;font-weight:600}
 :is(nav button,button.ghost,select,.row-head,.fold):focus-visible{outline:2px solid var(--accent);
   outline-offset:3px;border-radius:3px}
 
@@ -404,6 +419,24 @@ button.lien{appearance:none;border:0;background:none;padding:0;cursor:pointer;
   text-underline-offset:2px}
 button.lien:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+/* Sous 860 px la colonne n'a plus la place d'exister : elle redevient un
+   bandeau, la navigation repasse à l'horizontale et défile. Même balisage,
+   même ordre de lecture — seul le sens de l'axe change. */
+@media (max-width:860px){
+  header{position:sticky;inset:auto;top:env(safe-area-inset-top,0px);width:auto;
+    border-right:0;border-bottom:1px solid var(--rule)}
+  .head-in{flex-direction:row;flex-wrap:wrap;align-items:center;height:auto;gap:10px;
+    padding:12px max(14px,env(safe-area-inset-left,0px)) 0}
+  .brand{order:1;flex:1 1 auto;padding:0}
+  .head-tools{order:2;margin-top:0;flex-direction:row;align-items:center;
+    padding-top:0;border-top:0;flex:0 0 auto}
+  /* « Oct. 2026 » doit tenir : la flèche mange 26 px à droite. */
+  .head-tools select{width:auto;min-width:116px}
+  nav{order:3;flex:1 0 100%;flex-direction:row;gap:4px;overflow-x:auto;
+    padding-bottom:8px}
+  nav button{width:auto;flex:none}
+  .wrap{margin-left:0;padding:18px max(14px,env(safe-area-inset-left,0px)) 72px}
+}
 </style>
 </head>
 <body>
@@ -888,20 +921,29 @@ function chartEvolution(hote){
    la première est l'argent versé dans les titres, la seconde ce que le marché y a
    ajouté. Leur somme est la valeur du PEA. Une seule courbe de valeur
    mélangerait les deux et ne dirait pas lequel des deux a bougé. */
-function chartPEA(hote){
-  const W = largeur(hote), H = 290, L = 52, R = 14, T = 18, B = 28;
-  const S = PEA.serie;
-  const d0 = depart(S.mois);
-  const ms = S.mois.slice(d0), n = ms.length;
-  const eng = S.engage.slice(d0);
-  const val = S.valeur.slice(d0);
-  const apport = (S.apport || []).slice(d0);
-  const marche = (S.marche || []).slice(d0);
-  const reporte = (S.reporte || []).slice(d0);
+/* Ce que le PEA a rapporté, sur la période où la valeur est connue.
 
-  // La valeur n'existe qu'à partir du premier mois relevé : avant, seul
-  // l'argent versé est connu, et la bande de gain n'a pas de sens.
-  const p0 = val.findIndex(v => v != null);
+   La série complète remonte bien avant le premier mois relevé, mais les apports
+   des débuts sont d'un ordre de grandeur sans rapport avec ceux qui suivent.
+   Sur un axe qui part de zéro — et il doit partir de zéro — ces premiers mois
+   s'écrasent contre la ligne de base et la figure ne montre plus rien. Elle se
+   limite donc aux mois relevés ; la période antérieure est dite en toutes
+   lettres sous le graphique, à partir des données, ce qu'elle supporte mieux
+   qu'un tracé. */
+function chartPEA(hote){
+  const S = PEA.serie;
+  const p0 = S.valeur.findIndex(v => v != null);
+  const base = p0 < 0 ? 0 : p0;
+  const tousMois = S.mois.slice(base);
+  const d0 = depart(tousMois);
+  const ms = tousMois.slice(d0), n = ms.length;
+  const eng = S.engage.slice(base).slice(d0);
+  const val = S.valeur.slice(base).slice(d0);
+  const apport = (S.apport || []).slice(base).slice(d0);
+  const marche = (S.marche || []).slice(base).slice(d0);
+  const reporte = (S.reporte || []).slice(base).slice(d0);
+
+  const W = largeur(hote), H = 290, L = 52, R = 14, T = 18, B = 28;
   const {ticks, haut} = paliers(Math.max.apply(null,
     eng.concat(val.filter(v => v != null))));
   const x = i => L + i * (W - L - R) / Math.max(1, n - 1);
@@ -915,43 +957,35 @@ function chartPEA(hote){
     s.appendChild(txt(L - 8, y(v) + 3.5, kE(v), {"text-anchor": "end", "font-size": 9.5}));
   });
 
-  const chemin = (pts, de, a) => {
+  const chemin = pts => {
     let d = "";
-    for (let i = de; i <= a; i++)
-      d += (i === de ? "M" : "L") + x(i).toFixed(1) + " " + y(pts[i]).toFixed(1) + " ";
+    for (let i = 0; i < n; i++)
+      d += (i ? "L" : "M") + x(i).toFixed(1) + " " + y(pts[i]).toFixed(1) + " ";
     return d;
   };
-  // L'argent versé, depuis le premier achat.
-  let aireEng = chemin(eng, 0, n - 1);
+  let aireEng = chemin(eng);
   for (let i = n - 1; i >= 0; i--) aireEng += "L" + x(i).toFixed(1) + " " + y(0).toFixed(1) + " ";
   s.appendChild(sv("path", {d: aireEng + "Z", fill: css("--c1")}));
 
-  if (p0 >= 0) {
-    // Le gain se pose sur le capital : l'épaisseur de la bande est la plus-value.
-    let aireGain = chemin(val, p0, n - 1);
-    for (let i = n - 1; i >= p0; i--)
-      aireGain += "L" + x(i).toFixed(1) + " " + y(eng[i]).toFixed(1) + " ";
-    s.appendChild(sv("path", {d: aireGain + "Z", fill: css("--c3")}));
-    s.appendChild(sv("path", {d: chemin(eng, p0, n - 1), fill: "none",
-      stroke: css("--surface"), "stroke-width": 2}));
-    s.appendChild(sv("path", {d: chemin(val, p0, n - 1), fill: "none",
-      stroke: css("--ink"), "stroke-width": 1.75, "stroke-linejoin": "round"}));
-    s.appendChild(sv("circle", {cx: x(n - 1), cy: y(val[n - 1]), r: 4,
-      fill: css("--ink"), stroke: css("--surface"), "stroke-width": 2}));
-    // Où commence le relevé de valeur : avant ce trait, la page ne sait pas ce
-    // que le PEA valait, seulement ce qui y avait été versé.
-    if (p0 > 0) {
-      s.appendChild(sv("line", {x1: x(p0), x2: x(p0), y1: T - 4, y2: H - B,
-        stroke: css("--ink3"), "stroke-width": 1, "stroke-dasharray": "3 3"}));
-      s.appendChild(txt(x(p0) + 5, T + 6, "début du relevé",
-        {"font-size": 9.5, fill: css("--ink3")}));
-    }
-  }
+  let aireGain = chemin(val);
+  for (let i = n - 1; i >= 0; i--) aireGain += "L" + x(i).toFixed(1) + " " + y(eng[i]).toFixed(1) + " ";
+  s.appendChild(sv("path", {d: aireGain + "Z", fill: css("--c3")}));
+  s.appendChild(sv("path", {d: chemin(eng), fill: "none", stroke: css("--surface"),
+    "stroke-width": 2}));
+  s.appendChild(sv("path", {d: chemin(val), fill: "none", stroke: css("--ink"),
+    "stroke-width": 1.75, "stroke-linejoin": "round"}));
+  s.appendChild(sv("circle", {cx: x(n - 1), cy: y(val[n - 1]), r: 4,
+    fill: css("--ink"), stroke: css("--surface"), "stroke-width": 2}));
 
-  const pas = Math.ceil(n / 9);
+  // Le gain du dernier mois, étiqueté directement : c'est le chiffre qu'on
+  // vient chercher, et le lire sur l'axe demande un aller-retour.
+  const gFin = val[n - 1] - eng[n - 1];
+  s.appendChild(txt(x(n - 1) - 8, y(eng[n - 1] + gFin / 2) + 3.5, eurS(gFin),
+    {"text-anchor": "end", "font-size": 11, "font-weight": 600, fill: css("--ink")}));
+
   ms.forEach((m, i) => {
-    if (i % pas) return;
-    s.appendChild(txt(x(i), H - B + 15, m.replace(/ 20(\d\d)/, " $1").replace(".", ""),
+    if (n > 9 && i % 2) return;
+    s.appendChild(txt(x(i), H - B + 15, m.replace(/ 20\d\d/, "").replace(".", ""),
       {"text-anchor": "middle", "font-size": 9.5}));
   });
   hote.appendChild(s);
@@ -967,26 +1001,63 @@ function chartPEA(hote){
     i = Math.max(0, Math.min(n - 1, i));
     rail.setAttribute("x1", x(i)); rail.setAttribute("x2", x(i));
     rail.setAttribute("opacity", 1);
-    const lignes = [`<b>${esc(ms[i])}</b>`];
-    if (val[i] != null) {
-      lignes.push(`${eur(val[i])} au total`);
-      lignes.push(`<span style="color:${css("--c3")}">■</span> gain `
-        + eurS(val[i] - eng[i]));
+    const l = [`<b>${esc(ms[i])}</b>`, `${eur(val[i])} au total`,
+      `<span style="color:${css("--c3")}">■</span> gain ${eurS(val[i] - eng[i])}`,
+      `<span style="color:${css("--c1")}">■</span> versé ${eur(eng[i])}`];
+    if (i > 0 || base + d0 > 0) {
+      l.push("—", "sur le mois : " + (apport[i] ? "apport " + eurS(apport[i])
+        : "aucun apport"));
+      l.push(reporte[i] ? "marché non relevé ce mois-ci"
+        : marche[i] == null ? "marché inconnu" : "marché " + eurS(marche[i]));
     }
-    lignes.push(`<span style="color:${css("--c1")}">■</span> versé ${eur(eng[i])}`);
-    if (i > 0) {
-      const a = apport[i], mk = marche[i];
-      lignes.push("—");
-      lignes.push("sur le mois : " + (a ? "apport " + eurS(a) : "aucun apport"));
-      lignes.push(reporte[i] ? "marché non relevé ce mois-ci"
-        : (mk == null ? "marché inconnu" : "marché " + eurS(mk)));
-    }
-    tip.show(x(i) / W * hote.clientWidth,
-      y(val[i] == null ? eng[i] : val[i]) / H * (hote.clientHeight - 24) + 14,
-      lignes.join("<br>"));
+    tip.show(x(i) / W * hote.clientWidth, y(val[i]) / H * (hote.clientHeight - 24) + 14,
+      l.join("<br>"));
   };
   s.addEventListener("pointermove", bouge);
   s.addEventListener("pointerleave", () => { tip.hide(); rail.setAttribute("opacity", 0); });
+}
+
+/* Les versements mois par mois, sur la même fenêtre que la figure précédente.
+   Une barre par mois répond à « quand ai-je mis de l'argent », là où la courbe
+   cumulée répond à « combien en tout » : deux questions, deux figures. */
+function chartApports(hote){
+  const S = PEA.serie;
+  const p0 = S.valeur.findIndex(v => v != null);
+  const base = p0 < 0 ? 0 : p0;
+  const tousMois = S.mois.slice(base);
+  const d0 = depart(tousMois);
+  const ms = tousMois.slice(d0), n = ms.length;
+  const ap = (S.apport || []).slice(base).slice(d0).map(v => v || 0);
+
+  const W = largeur(hote), H = 180, L = 52, R = 14, T = 20, B = 28;
+  const {ticks, haut} = paliers(Math.max.apply(null, ap.concat([1])));
+  const y = v => H - B - (v / haut) * (H - T - B);
+  const pas = (W - L - R) / n, bw = Math.min(34, pas * .5);
+  const s = sv("svg", {viewBox: `0 0 ${W} ${H}`, role: "img",
+    "aria-label": "Versements sur le PEA, mois par mois"});
+  ticks.forEach(v => {
+    s.appendChild(sv("line", {x1: L, x2: W - R, y1: y(v), y2: y(v),
+      stroke: css("--rule"), "stroke-width": 1}));
+    s.appendChild(txt(L - 8, y(v) + 3.5, kE(v), {"text-anchor": "end", "font-size": 9.5}));
+  });
+  ms.forEach((m, i) => {
+    const cx = L + pas * (i + .5) - bw / 2;
+    if (ap[i] > 0) {
+      s.appendChild(sv("rect", {x: cx, y: y(ap[i]), width: bw,
+        height: Math.max(2, y(0) - y(ap[i])), fill: css("--c1"), rx: 2}));
+      s.appendChild(txt(cx + bw / 2, y(ap[i]) - 6, kE(ap[i]),
+        {"text-anchor": "middle", "font-size": 9.5, "font-weight": 600}));
+    } else {
+      // Un mois sans versement est une information : on le marque, sans barre.
+      s.appendChild(sv("line", {x1: cx, x2: cx + bw, y1: y(0), y2: y(0),
+        stroke: css("--rule-strong"), "stroke-width": 2}));
+    }
+    s.appendChild(txt(cx + bw / 2, H - B + 15, m.replace(/ 20\d\d/, "").replace(".", ""),
+      {"text-anchor": "middle", "font-size": 9.5}));
+  });
+  s.appendChild(sv("line", {x1: L, x2: W - R, y1: y(0), y2: y(0),
+    stroke: css("--rule-strong"), "stroke-width": 1}));
+  hote.appendChild(s);
 }
 
 /* Variation du patrimoine mois par mois. L'aire empilée montre le niveau ; à
@@ -2281,16 +2352,15 @@ function ongletMarches(hote){
     const f1 = figure(g1, "c7");
     chartPEA(f1);
     legende(f1, [[css("--c1"), "Capital engagé"], [css("--c3"), "Gain"]], true);
-    // Le plat du début n'est pas un trou de données : il est à l'échelle.
-    if (PEA.serie.apport) {
-      const S2 = PEA.serie, p1 = S2.valeur.findIndex(v => v != null);
-      if (p1 > 0) {
-        const avant1 = S2.engage[p1 - 1];
-        note(f1, "La courbe semble plate jusqu'à " + esc(S2.mois[p1]) + " : elle l'est. "
-          + eur(avant1) + " avaient été versés en " + p1 + " mois, contre "
-          + eur(S2.apport[p1]) + " sur ce seul mois-là. Le plat est à l'échelle, "
-          + "ce n'est pas un trou de données.");
-      }
+    // La période antérieure tient en une phrase et deux chiffres. Tracée, elle
+    // s'écrasait contre la ligne de base et ne montrait rien.
+    const p1 = PEA.serie.valeur.findIndex(v => v != null);
+    if (p1 > 0) {
+      note(f1, "Le graphique part du premier mois relevé. Avant lui, "
+        + eur(PEA.serie.engage[p1 - 1]) + " avaient été versés en " + p1 + " mois — "
+        + "trop peu, à côté des " + eur(PEA.serie.apport[p1]) + " du seul mois de "
+        + PEA.serie.mois[p1] + ", pour tenir sur la même échelle. Le taux de "
+        + "rendement, lui, compte bien toute la période.");
     }
 
     const f2 = figure(g1, "c5");
@@ -2304,6 +2374,15 @@ function ongletMarches(hote){
       note(f2, "Au cours du jour, ligne par ligne — l'aire de gauche, elle, s'arrête "
         + "au dernier mois relevé.");
     }
+
+    // Quand l'argent est entré, par opposition à combien il y en a en tout.
+    const f3 = figure(g1, "c12");
+    f3.appendChild(Object.assign(document.createElement("h3"),
+      {textContent: "Versements, mois par mois", style: "font-size:15px"}));
+    chartApports(f3);
+    note(f3, "Un trait à la place d'une barre marque un mois sans versement. "
+      + "Verser n'est pas gagner : ces montants n'entrent pas dans le gain, ils "
+      + "en sont le dénominateur.");
 
     tableau(s1, ["Ligne", "Engagé", "Valeur", "Gain"], PEA.lignes.map(l => ({
       cellules: [esc(nom(l.label)), {v: eur(l.engage)}, {v: eur(l.valeur)},
