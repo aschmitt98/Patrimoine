@@ -215,6 +215,14 @@ section.viz > .lede{font-size:13.5px;color:var(--ink2);margin:5px 0 0;max-width:
 .hero .k{order:1;font-family:var(--f-mono);font-size:clamp(38px,5.6vw,60px);font-weight:600;
   line-height:.98;font-variant-numeric:tabular-nums;letter-spacing:-.035em}
 .hero .sub{order:3}
+/* Le plan n'ouvre pas sur un nombre mais sur une phrase : l'ordre imposé aux
+   héros chiffrés ne s'y applique pas, et l'instruction passe devant le montant. */
+.hero.plan > *{order:0}
+.hero.plan .acte-tete{font-family:var(--f-display);font-weight:650;
+  font-size:clamp(25px,3.3vw,36px);line-height:1.12;letter-spacing:-.016em;
+  max-width:24ch;text-wrap:balance}
+.hero.plan .k{font-size:clamp(22px,2.4vw,28px);color:var(--ink2);margin-top:10px}
+.hero.plan .sub{margin-top:12px;max-width:66ch}
 /* Héros à deux chiffres de tête, côte à côte sur grand écran. */
 .hero.duo{display:grid;grid-template-columns:1fr 1fr;gap:22px 34px}
 .hero.duo > div{min-width:0;display:flex;flex-direction:column;align-items:flex-start}
@@ -272,6 +280,9 @@ section.viz > .lede{font-size:13.5px;color:var(--ink2);margin:5px 0 0;max-width:
   border:1px solid var(--rule);border-radius:var(--r-m);padding:14px 15px;margin-top:9px;
   cursor:pointer;text-align:left;width:100%;font:inherit;color:var(--ink)}
 .acte:hover{border-color:var(--rule-strong)}
+/* Celle que la tête de page annonce : le liseré relie les deux au lieu de
+   laisser croire à une répétition sans raison. */
+.acte.suivante{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
 .acte .case{flex:none;width:21px;height:21px;border-radius:var(--r-s);margin-top:1px;
   border:1.5px solid var(--rule-strong);display:flex;align-items:center;
   justify-content:center;font-size:13px;background:var(--ground);
@@ -2017,15 +2028,30 @@ function ongletPlan(hote){
   const reste = plan.actions.filter(a => !faits[a.cle] && a.montant)
     .reduce((t, a) => t + a.montant, 0);
 
+  // Cet onglet s'ouvre pour agir, pas pour se noter : la tête de page porte la
+  // prochaine action, en toutes lettres. Un compteur « 0 / 9 » dit où on en est
+  // sans jamais dire quoi faire — il redescend dans les totaux.
+  const prochaine = plan.actions.find(a => !faits[a.cle]);
   const hero = document.createElement("div");
-  hero.className = "hero";
-  hero.innerHTML = `<span class="eyebrow">Plan — ${esc(plan.mois)}</span>`
-    + `<div class="k">${ok} / ${n}</div>`
-    + `<div class="sub"><span class="ctx">${esc(plan.intro || "")}</span></div>`;
+  hero.className = "hero plan";
+  if (prochaine) {
+    const rang = plan.actions.indexOf(prochaine) + 1;
+    hero.innerHTML = `<div class="acte-tete">${esc(prochaine.libelle)}</div>`
+      + (prochaine.montant ? `<div class="k">${esc(eur(prochaine.montant))}</div>` : "")
+      + `<div class="sub"><span class="ctx">`
+      + `${rang === 1 ? "Première" : rang + "\u1d49"} des ${n} actions du plan de `
+      + `${esc((plan.mois || "").toLowerCase())}`
+      + (prochaine.quand ? `, ${esc(prochaine.quand.toLowerCase())}` : "") + `.`
+      + (prochaine.detail ? " " + esc(prochaine.detail) : "") + `</span></div>`;
+  } else {
+    hero.innerHTML = `<div class="acte-tete">Le plan du mois est fait.</div>`
+      + `<div class="sub"><span class="ctx">Les ${n} actions sont cochées. `
+      + `Le prochain plan s'écrira à la mise à jour du mois.</span></div>`;
+  }
   hote.appendChild(hero);
 
   tuiles(hote, [
-    [String(n - ok), "Actions restantes"],
+    [ok + " / " + n, "Actions cochées"],
     [eur(reste), "Montant en jeu"],
     [plan.reserve ? eur(plan.reserve.montant) : "—",
      plan.reserve ? plan.reserve.libelle : "Réserve"],
@@ -2044,7 +2070,7 @@ function ongletPlan(hote){
     }
     const b = document.createElement("button");
     b.type = "button";
-    b.className = "acte";
+    b.className = "acte" + (a === prochaine ? " suivante" : "");
     b.setAttribute("aria-pressed", String(!!faits[a.cle]));
     b.innerHTML = `<span class="case" aria-hidden="true">✓</span>`
       + `<span class="corps"><b class="nom">${esc(a.libelle)}</b>`
