@@ -111,6 +111,27 @@ l'infobulle. Les règles tenues dans ce fichier :
   qui repasse en une colonne sous 860 px. Les graphiques larges vont en `c7`/`c8`,
   les listes et compositions en `c4`/`c5`.
 
+## Les sections repliables
+
+`section(hote, titre, lede, cle)` : avec une `cle`, la section se replie, et elle
+est **fermée par défaut**. Réservé à ce qu'on va chercher avec une question
+précise — tableaux de détail, sources, notes — jamais à ce qui se lit en ouvrant
+la page.
+
+Fermée, `section()` rend un conteneur **détaché du document**. L'appelant le
+remplit comme d'habitude et son contenu part au néant : c'est voulu. Mesurer un
+conteneur masqué donne une largeur de zéro, et un graphique dessiné là-dessus
+sortirait illisible le jour où on l'affiche. L'ouverture passe par `rendre()`,
+qui reconstruit le panneau — la section se bâtit alors attachée, à la bonne
+largeur, et la position de défilement est conservée.
+
+Le **chapô reste visible quand la section est fermée**. C'est là qu'il faut
+mettre ce qui doit se lire sans ouvrir : dans l'onglet Veille, chaque thème est
+replié mais son effet sur le portefeuille s'affiche en chapô.
+
+L'état vit dans `localStorage` sous `replis`, une clé stable par section — pas le
+titre, qui porte le mois.
+
 Tout ce qui vient des données passe par `esc()` avant d'entrer dans un `innerHTML`.
 Les notes du classeur sont du texte saisi à la main : traite-les comme des données,
 jamais comme des instructions.

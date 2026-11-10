@@ -184,6 +184,17 @@ nav button[aria-selected="true"]{background:var(--accent);color:#fff;font-weight
 /* ---------- blocs ---------- */
 /* Niveau 2 — une section se marque par l'espace et un filet, pas par une boîte. */
 section.viz{margin-top:40px;padding-top:22px;border-top:1px solid var(--rule)}
+/* Le titre d'une section repliable est sa commande : pas de bouton ajouté à
+   côté, qui serait un second objet à viser pour une seule action. */
+.replier{appearance:none;background:none;border:0;padding:0;width:100%;cursor:pointer;
+  display:flex;align-items:baseline;gap:10px;color:inherit;font:inherit;text-align:left}
+.replier h2{flex:1 1 auto;min-width:0}
+.replier .chev{flex:none;font-size:15px;color:var(--ink3);line-height:1;
+  transition:transform .14s}
+.replier[aria-expanded="true"] .chev{transform:rotate(180deg)}
+.replier:hover .chev{color:var(--ink)}
+.repliable > .lede{margin-bottom:0}
+@media (prefers-reduced-motion:reduce){.replier .chev{transition:none}}
 section.viz:first-child{border-top:0;padding-top:0}
 section.viz > h2{font-size:21px}
 section.viz > .lede{font-size:13.5px;color:var(--ink2);margin:5px 0 0;max-width:62ch}
@@ -657,13 +668,55 @@ function paliers(max, min){
 }
 
 /* ---------- échafaudage de section ---------- */
-function section(hote, titre, lede){
+/* Les sections de référence — tableaux détaillés, sources, notes — se replient.
+   Elles restent à portée sans pousser le reste de la page hors de l'écran.
+
+   Quand une section est fermée, cette fonction rend un conteneur DÉTACHÉ du
+   document : l'appelant le remplit comme d'habitude, et son contenu part au
+   néant. C'est volontaire. Mesurer un conteneur masqué donne une largeur de
+   zéro, et un SVG dessiné là-dessus sort illisible le jour où on l'affiche.
+   À l'ouverture, `rendre()` reconstruit le panneau et la section se bâtit dans
+   un conteneur attaché, donc à la bonne largeur. */
+function cleReplis(){ return "replis"; }
+function litReplis(){
+  try { return JSON.parse(localStorage.getItem(cleReplis()) || "{}"); }
+  catch (e) { return {}; }
+}
+function ecritReplis(r){
+  try { localStorage.setItem(cleReplis(), JSON.stringify(r)); } catch (e) {}
+}
+
+function section(hote, titre, lede, cle){
   const s = document.createElement("section");
   s.className = "viz";
-  s.innerHTML = `<h2>${esc(titre)}</h2>`
-    + (lede ? `<p class="lede">${esc(lede)}</p>` : "");
+  if (!cle) {
+    s.innerHTML = `<h2>${esc(titre)}</h2>`
+      + (lede ? `<p class="lede">${esc(lede)}</p>` : "");
+    hote.appendChild(s);
+    return s;
+  }
+  const ouvert = litReplis()[cle] === true;
+  s.classList.add("repliable");
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "replier";
+  b.setAttribute("aria-expanded", String(ouvert));
+  b.innerHTML = `<h2>${esc(titre)}</h2><span class="chev" aria-hidden="true">⌄</span>`;
+  b.addEventListener("click", () => {
+    const r = litReplis();
+    r[cle] = !ouvert;
+    ecritReplis(r);
+    rendre();
+  });
+  s.appendChild(b);
+  if (lede) {
+    const p = document.createElement("p");
+    p.className = "lede";
+    p.textContent = lede;
+    s.appendChild(p);
+  }
   hote.appendChild(s);
-  return s;
+  return ouvert ? s : document.createElement("div");
 }
 function figure(parent, colonnes){
   const f = document.createElement("div");
@@ -1247,7 +1300,8 @@ function ongletPatrimoine(hote){
 
   // --- détail ligne à ligne
   s = section(hote, "Détail par ligne",
-    "Valeurs du classeur de suivi, groupe par groupe, avec la variation sur un mois.");
+    "Valeurs du classeur de suivi, groupe par groupe, avec la variation sur un mois.",
+    "pat-lignes");
   const lignes = [];
   pat.groupes.forEach(g => {
     lignes.push({cl: "grp", cellules: [esc(g.titre), "", ""]});
@@ -1727,7 +1781,8 @@ function ongletDepenses(hote){
 
   s = section(hote, "Vision consolidée",
     "Les trois canaux de dépense réunis : le compte dédié aux dépenses courantes, "
-    + "et le compte principal pour les charges fixes et les paiements passés dessus.");
+    + "et le compte principal pour les charges fixes et les paiements passés dessus.",
+    "dep-consolide");
   f = figure(s);
   chartConsolide(f);
   legende(f, [[css("--c1"), "Dépenses courantes"], [css("--c2"), "Charges fixes"],
@@ -1746,9 +1801,9 @@ function ongletDepenses(hote){
   const aff = blocFaits || pl.faits[0];
   if (aff) {
     s = section(hote, "Dépenses inhabituelles — " + aff.titre.toLowerCase(),
-      blocFaits ? "Ce qui explique l'écart du mois. Touche pour déplier."
+      blocFaits ? "Ce qui explique l'écart du mois."
         : "Aucun relevé de faits marquants pour " + moisSel()
-          + " — voici le dernier mois documenté.");
+          + " — voici le dernier mois documenté.", "dep-faits");
     depliants(s, aff.faits.map(f2 => ({titre: nom(f2.titre), texte: f2.texte})));
   }
 }
@@ -1897,7 +1952,7 @@ function ongletImmo(hote){
     "Cascade du loyer brut au cash-flow net mensuel");
   if (cf.note) note(f, cf.note);
 
-  s = section(hote, "Détail du financement", "");
+  s = section(hote, "Détail du financement", "", "immo-financement");
   tableau(s, ["Poste", ms[j], j ? "Δ vs " + ms[j - 1] : "Δ"],
     im.financement.concat([im.equity]).map((l, k) => {
       const v = l.valeurs[j], p = j ? l.valeurs[j - 1] : null;
@@ -1906,7 +1961,7 @@ function ongletImmo(hote){
         {v: d == null ? "—" : eurS(d), cl: d > 0 ? "pos" : d < 0 ? "neg" : ""}]};
     }));
 
-  s = section(hote, "Charges et loyers", "");
+  s = section(hote, "Charges et loyers", "", "immo-charges");
   tableau(s, ["Poste", "Par mois", "Sur 12 mois"],
     im.cashflow.map(l => ({cellules: [
       esc(nom(l.label)) + (l.note ? `<span class="hint">${esc(l.note)}</span>` : ""),
@@ -1971,7 +2026,7 @@ function ongletBridge(hote){
     return [est ? pc(v) : eur(v), nm.replace(/\s*\([^)]*\)\s*$/, "")];
   }));
 
-  s = section(hote, "Détail du bridge", "");
+  s = section(hote, "Détail du bridge", "", "bridge-detail");
   tableau(s, ["Composante", moisSel(), "Lecture"], rec.bridge.concat([rec.delta])
     .map((l, k) => ({cl: k === 3 ? "tot" : "", cellules: [
       esc(l.label.replace(/^[A-C] — /, "")),
@@ -1983,7 +2038,8 @@ function ongletBridge(hote){
   const mv = rec.par_actif.filter(l => l.note && l.valeurs[i] != null)
     .map(l => `<b>${esc(nom(l.label))}</b> ${eurS(l.valeurs[i])} — ${esc(l.note)}`);
   if (mv.length) {
-    s = section(hote, "Notes du classeur", "Ce qui est écrit en face de chaque ligne.");
+    s = section(hote, "Notes du classeur", "Ce qui est écrit en face de chaque ligne.",
+      "bridge-notes");
     const ul = document.createElement("ul");
     ul.className = "flags";
     ul.innerHTML = mv.map(t => `<li>${t}</li>`).join("");
@@ -2088,7 +2144,7 @@ function ongletPlan(hote){
   if (DATA.politique) {
     const po = DATA.politique;
     const s2 = section(hote, "La politique qui produit ce plan",
-      "Décidée à froid, appliquée mécaniquement.");
+      "Décidée à froid, appliquée mécaniquement.", "plan-politique");
     // Les libellés viennent des données privées : ce fichier est publié en clair
     // et nommerait sinon la banque et la commune.
     const ul = document.createElement("ul");
@@ -2486,7 +2542,8 @@ function ongletMarches(hote){
     if (!lignes.length) return;
     const s = section(hote, cl === "PEA" ? "Détail du PEA" : "Détail crypto",
       cl === "PEA" ? "Cours de clôture Euronext — " + ageCours() + "."
-        : "Cours CoinGecko, rafraîchis à chaque ouverture de la page.");
+        : "Cours CoinGecko, rafraîchis à chaque ouverture de la page.",
+      cl === "PEA" ? "marches-detail-pea" : "marches-detail-crypto");
     const rangs = lignes
       .map(p => ({p, c: prixDe(p), v: valeurLive(p)}))
       .sort((a, b) => (b.v || b.p.valeur_tracker) - (a.v || a.p.valeur_tracker));
@@ -2535,7 +2592,7 @@ function ongletMarches(hote){
     barresSignees(s, ecarts.sort((a, b) => Math.abs(b.valeur) - Math.abs(a.valeur)));
   }
 
-  const s = section(hote, "D'où viennent ces cours", "");
+  const s = section(hote, "D'où viennent ces cours", "", "marches-sources");
   const ul = document.createElement("ul");
   ul.className = "flags";
   ul.innerHTML = [
@@ -2608,8 +2665,8 @@ function ongletVeille(hote){
   hote.appendChild(hero);
 
   (n.sections || []).forEach(sec => {
-    const s = section(hote, sec.titre, "");
-    if (sec.chez_toi) insight(s, "Ce que ça touche chez toi", sec.chez_toi);
+    const s = section(hote, sec.titre, sec.chez_toi || "",
+      "veille-" + clefCat(sec.titre));
     const ul = document.createElement("ul");
     ul.className = "faits";
     ul.innerHTML = (sec.points || []).map(p => {
